@@ -10,60 +10,31 @@ set(CMAKE_SYSTEM_NAME Generic)
 # 必须在project()之前设置这些变量
 set(CMAKE_SYSTEM_PROCESSOR cortex-m7)
 
-# ARM GCC installation path - read from environment (set by CMakePresets.json)
-set(ARM_TOOLCHAIN_PATH "$ENV{ARM_GCC_PATH}")
-
-# Fallback to default path if environment variable is not set
-if(NOT ARM_TOOLCHAIN_PATH OR ARM_TOOLCHAIN_PATH STREQUAL "")
-    set(ARM_TOOLCHAIN_PATH "C:/Users/NoWat/Workspace/Toolchains/arm-gnu-toolchain-14.3.rel1-mingw-w64-x86_64-arm-none-eabi/bin")
-    message(WARNING "ARM_GCC_PATH not set, using default: ${ARM_TOOLCHAIN_PATH}")
+# 可选 PATH 提示：通过 VS Code settings 注入 ARM_GCC_PATH（cmake.configureSettings 或 cmake.environment）
+set(ARM_GCC_PATH "${ARM_GCC_PATH}")
+if(NOT ARM_GCC_PATH AND DEFINED ENV{ARM_GCC_PATH})
+    set(ARM_GCC_PATH "$ENV{ARM_GCC_PATH}")
+endif()
+if(ARM_GCC_PATH)
+    list(APPEND CMAKE_PROGRAM_PATH "${ARM_GCC_PATH}")
 endif()
 
-# Specify the cross compiler
-set(CMAKE_C_COMPILER "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-gcc.exe")
-set(CMAKE_CXX_COMPILER "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-g++.exe")
-set(CMAKE_ASM_COMPILER "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-gcc.exe")
+# 指定交叉编译器（采用标准可执行名，依赖 PATH 或 CMAKE_PROGRAM_PATH）
+set(CMAKE_C_COMPILER   arm-none-eabi-gcc)
+set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
+set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
 
-# Specify additional tools
-set(CMAKE_OBJCOPY "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-objcopy.exe")
-set(CMAKE_OBJDUMP "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-objdump.exe")
-set(CMAKE_SIZE_UTIL "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-size.exe")
-set(CMAKE_AR "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-ar.exe")
-set(CMAKE_RANLIB "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-ranlib.exe")
-set(CMAKE_LINKER "${ARM_TOOLCHAIN_PATH}/arm-none-eabi-ld.exe")
+# 其他工具（采用标准可执行名）
+set(CMAKE_OBJCOPY   arm-none-eabi-objcopy)
+set(CMAKE_OBJDUMP   arm-none-eabi-objdump)
+set(CMAKE_SIZE_UTIL arm-none-eabi-size)
+set(CMAKE_AR        arm-none-eabi-ar)
+set(CMAKE_RANLIB    arm-none-eabi-ranlib)
+set(CMAKE_LINKER    arm-none-eabi-ld)
 
-# 强制设置编译器ID
-set(CMAKE_C_COMPILER_ID GNU)
-set(CMAKE_CXX_COMPILER_ID GNU)
-set(CMAKE_ASM_COMPILER_ID GNU)
+# 保持默认检测流程，不再强制伪造编译器 ID/版本/可用性
 
-# 强制设置编译器版本（避免检测）
-set(CMAKE_C_COMPILER_VERSION 14.3)
-set(CMAKE_CXX_COMPILER_VERSION 14.3)
-set(CMAKE_ASM_COMPILER_VERSION 14.3)
-
-# 禁用编译器检查
-set(CMAKE_C_COMPILER_FORCED TRUE)
-set(CMAKE_CXX_COMPILER_FORCED TRUE)
-set(CMAKE_ASM_COMPILER_FORCED TRUE)
-
-# 告诉CMake编译器可以工作
-set(CMAKE_C_COMPILER_WORKS TRUE)
-set(CMAKE_CXX_COMPILER_WORKS TRUE)
-set(CMAKE_ASM_COMPILER_WORKS TRUE)
-
-# 验证工具链文件存在
-if(NOT EXISTS "${CMAKE_C_COMPILER}")
-    message(FATAL_ERROR "ARM GCC not found at: ${CMAKE_C_COMPILER}")
-endif()
-
-if(NOT EXISTS "${CMAKE_OBJCOPY}")
-    message(FATAL_ERROR "arm-none-eabi-objcopy not found at: ${CMAKE_OBJCOPY}")
-endif()
-
-if(NOT EXISTS "${CMAKE_LINKER}")
-    message(FATAL_ERROR "arm-none-eabi-ld not found at: ${CMAKE_LINKER}")
-endif()
+# 不做存在性检查，默认工具可用
 
 # 设置搜索路径
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
@@ -106,7 +77,7 @@ message(STATUS "ARM GCC toolchain configured:")
 message(STATUS "  System Name: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "  System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "  System Architecture: ${CMAKE_SYSTEM_ARCH}")
-message(STATUS "  Toolchain Path: ${ARM_TOOLCHAIN_PATH}")
+message(STATUS "  Path Hint: ${ARM_GCC_PATH}")
 message(STATUS "  C Compiler: ${CMAKE_C_COMPILER}")
 message(STATUS "  CXX Compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "  ASM Compiler: ${CMAKE_ASM_COMPILER}")

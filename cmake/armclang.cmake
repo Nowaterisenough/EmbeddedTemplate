@@ -10,83 +10,33 @@ set(CMAKE_SYSTEM_NAME Generic)
 # 必须在project()之前设置这些变量
 set(CMAKE_SYSTEM_PROCESSOR cortex-m7)
 
-# ARM Compiler 6 installation path - read from environment (set by CMakePresets.json)
-set(ARM_TOOLCHAIN_PATH "$ENV{ARM_CLANG_PATH}")
-
-# Fallback to default path if environment variable is not set
-if(NOT ARM_TOOLCHAIN_PATH OR ARM_TOOLCHAIN_PATH STREQUAL "")
-    set(ARM_TOOLCHAIN_PATH "C:/Users/NoWat/Workspace/Toolchains/ArmCompiler6.22/bin")
-    message(WARNING "ARM_CLANG_PATH not set, using default: ${ARM_TOOLCHAIN_PATH}")
+# 可选 PATH 提示：通过 VS Code settings 注入 ARM_CLANG_PATH（cmake.configureSettings 或 cmake.environment）
+set(ARM_CLANG_PATH "${ARM_CLANG_PATH}")
+if(NOT ARM_CLANG_PATH AND DEFINED ENV{ARM_CLANG_PATH})
+    set(ARM_CLANG_PATH "$ENV{ARM_CLANG_PATH}")
+endif()
+if(ARM_CLANG_PATH)
+    list(APPEND CMAKE_PROGRAM_PATH "${ARM_CLANG_PATH}")
 endif()
 
-# Specify the cross compiler - use environment variables if available, otherwise construct paths
-if(DEFINED ENV{ARMCLANG_EXE})
-    set(CMAKE_C_COMPILER "$ENV{ARMCLANG_EXE}")
-    set(CMAKE_CXX_COMPILER "$ENV{ARMCLANG_EXE}")
-    set(CMAKE_ASM_COMPILER "$ENV{ARMCLANG_EXE}")
-else()
-    set(CMAKE_C_COMPILER "${ARM_TOOLCHAIN_PATH}/armclang.exe")
-    set(CMAKE_CXX_COMPILER "${ARM_TOOLCHAIN_PATH}/armclang.exe")
-    set(CMAKE_ASM_COMPILER "${ARM_TOOLCHAIN_PATH}/armclang.exe")
-endif()
+# 使用标准可执行名；如需自定义，可在 VS Code settings 覆盖这些变量
+set(CMAKE_C_COMPILER   armclang)
+set(CMAKE_CXX_COMPILER armclang)
+set(CMAKE_ASM_COMPILER armclang)
 
 # Specify additional tools
-if(DEFINED ENV{FROMELF_EXE})
-    set(CMAKE_OBJCOPY "$ENV{FROMELF_EXE}")
-    set(CMAKE_OBJDUMP "$ENV{FROMELF_EXE}")
-    set(CMAKE_SIZE_UTIL "$ENV{FROMELF_EXE}")
-else()
-    set(CMAKE_OBJCOPY "${ARM_TOOLCHAIN_PATH}/fromelf.exe")
-    set(CMAKE_OBJDUMP "${ARM_TOOLCHAIN_PATH}/fromelf.exe")
-    set(CMAKE_SIZE_UTIL "${ARM_TOOLCHAIN_PATH}/fromelf.exe")
-endif()
+set(CMAKE_OBJCOPY  fromelf)
+set(CMAKE_OBJDUMP  fromelf)
+set(CMAKE_SIZE_UTIL fromelf)
 
-if(DEFINED ENV{ARMAR_EXE})
-    set(CMAKE_AR "$ENV{ARMAR_EXE}")
-    set(CMAKE_RANLIB "$ENV{ARMAR_EXE}")
-else()
-    set(CMAKE_AR "${ARM_TOOLCHAIN_PATH}/armar.exe")
-    set(CMAKE_RANLIB "${ARM_TOOLCHAIN_PATH}/armar.exe")
-endif()
+set(CMAKE_AR     armar)
+set(CMAKE_RANLIB armar)
 
-if(DEFINED ENV{ARMLINK_EXE})
-    set(CMAKE_LINKER "$ENV{ARMLINK_EXE}")
-else()
-    set(CMAKE_LINKER "${ARM_TOOLCHAIN_PATH}/armlink.exe")
-endif()
+set(CMAKE_LINKER armlink)
 
-# 强制设置编译器ID
-set(CMAKE_C_COMPILER_ID ARMClang)
-set(CMAKE_CXX_COMPILER_ID ARMClang)
-set(CMAKE_ASM_COMPILER_ID ARMClang)
+# 让 CMake 自行检测编译器和版本，不再强制伪造
 
-# 强制设置编译器版本（避免检测）
-set(CMAKE_C_COMPILER_VERSION 6.22)
-set(CMAKE_CXX_COMPILER_VERSION 6.22)
-set(CMAKE_ASM_COMPILER_VERSION 6.22)
-
-# 禁用编译器检查
-set(CMAKE_C_COMPILER_FORCED TRUE)
-set(CMAKE_CXX_COMPILER_FORCED TRUE)
-set(CMAKE_ASM_COMPILER_FORCED TRUE)
-
-# 告诉CMake编译器可以工作
-set(CMAKE_C_COMPILER_WORKS TRUE)
-set(CMAKE_CXX_COMPILER_WORKS TRUE)
-set(CMAKE_ASM_COMPILER_WORKS TRUE)
-
-# 验证工具链文件存在
-if(NOT EXISTS "${CMAKE_C_COMPILER}")
-    message(FATAL_ERROR "ARM Compiler not found at: ${CMAKE_C_COMPILER}")
-endif()
-
-if(NOT EXISTS "${CMAKE_OBJCOPY}")
-    message(FATAL_ERROR "fromelf not found at: ${CMAKE_OBJCOPY}")
-endif()
-
-if(NOT EXISTS "${CMAKE_LINKER}")
-    message(FATAL_ERROR "armlink not found at: ${CMAKE_LINKER}")
-endif()
+# 不做存在性检查，默认工具可用
 
 # 设置搜索路径
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
@@ -135,7 +85,7 @@ message(STATUS "ARM Compiler 6.22 toolchain configured:")
 message(STATUS "  System Name: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "  System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "  System Architecture: ${CMAKE_SYSTEM_ARCH}")
-message(STATUS "  Toolchain Path: ${ARM_TOOLCHAIN_PATH}")
+message(STATUS "  Path Hint: ${ARM_CLANG_PATH}")
 message(STATUS "  C Compiler: ${CMAKE_C_COMPILER}")
 message(STATUS "  CXX Compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "  ASM Compiler: ${CMAKE_ASM_COMPILER}")
