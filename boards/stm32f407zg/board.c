@@ -1,5 +1,6 @@
 #include "stm32f4xx_hal.h"
 #include "board.h"
+#include "board_config.h"
 
 static void SystemClock_Config(void);
 
@@ -40,5 +41,72 @@ static void SystemClock_Config(void)
 
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK) {
         while (1) { }
+    }
+}
+
+void board_delay_ms(uint32_t ms)
+{
+    HAL_Delay(ms);
+}
+
+uint32_t board_millis(void)
+{
+    return HAL_GetTick();
+}
+
+void board_led_init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    /* Enable GPIO clocks for LEDs */
+    LED1_GPIO_CLK_ENABLE();
+    LED2_GPIO_CLK_ENABLE();
+    LED3_GPIO_CLK_ENABLE();
+    LED4_GPIO_CLK_ENABLE();
+
+    /* Configure GPIO pins for LEDs */
+    GPIO_InitStruct.Pin = LED1_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(LED1_GPIO_PORT, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LED2_PIN;
+    HAL_GPIO_Init(LED2_GPIO_PORT, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LED3_PIN;
+    HAL_GPIO_Init(LED3_GPIO_PORT, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = LED4_PIN;
+    HAL_GPIO_Init(LED4_GPIO_PORT, &GPIO_InitStruct);
+}
+
+void board_led(uint16_t led, uint8_t state)
+{
+    GPIO_PinState pin_state = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    
+    switch(led) {
+        case BOARD_LED1_PIN:
+            HAL_GPIO_WritePin(LED1_GPIO_PORT, LED1_PIN, pin_state);
+            break;
+        case BOARD_LED2_PIN:
+            HAL_GPIO_WritePin(LED2_GPIO_PORT, LED2_PIN, pin_state);
+            break;
+        case BOARD_LED3_PIN:
+            HAL_GPIO_WritePin(LED3_GPIO_PORT, LED3_PIN, pin_state);
+            break;
+        case BOARD_LED4_PIN:
+            HAL_GPIO_WritePin(LED4_GPIO_PORT, LED4_PIN, pin_state);
+            break;
+        default:
+            break;
+    }
+}
+
+void board_fatal_halt(void)
+{
+    __disable_irq();
+    while (1) {
+        /* Halt here */
     }
 }

@@ -70,7 +70,6 @@ set(CUBEF4_HAL_SOURCES
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c
-  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_comp.c
 
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sd.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_mmc.c

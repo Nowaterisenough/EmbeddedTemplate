@@ -45,11 +45,16 @@ target_compile_options(board_stm32f407zg INTERFACE
   -ffunction-sections -fdata-sections
 )
 
+# 为HAL配置提供头文件路径
+target_include_directories(hal_conf INTERFACE ${BOARD_DIR}/config)
+target_compile_definitions(hal_defs INTERFACE STM32F407xx)
+
 # 供应商头（CMSIS/HAL）
 target_link_libraries(board_stm32f407zg INTERFACE cubef4)
 
-# 链接脚本（ARMClang 使用 .sct；如用 GCC，请补充 .ld 和 -T）
+# 链接脚本（ARMClang 使用 .sct；GCC 使用 .ld）
 set(_SCT ${BOARD_DIR}/linker/stm32f407zgtx_flash.sct)
+set(_LD ${BOARD_DIR}/linker/stm32f407zgtx_flash.ld)
 if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
   if(NOT EXISTS "${_SCT}")
     message(FATAL_ERROR "未找到 scatter 文件: ${_SCT}")
@@ -58,6 +63,16 @@ if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
     --scatter=${_SCT}
     --info sizes --map --strict
   )
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  if(NOT EXISTS "${_LD}")
+    message(FATAL_ERROR "未找到 GNU LD 链接脚本: ${_LD}")
+  endif()
+  target_link_options(board_stm32f407zg INTERFACE
+    -T${_LD}
+    -Wl,--gc-sections
+    -Wl,-Map=${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.map
+    -Wl,--print-memory-usage
+  )
 else()
-  message(WARNING "当前非 ARMClang 工具链，请为本板提供 .ld 并在此添加 -T<ld>")
+  message(WARNING "未知编译器 ${CMAKE_C_COMPILER_ID}，请手动配置链接选项")
 endif()
