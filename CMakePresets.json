@@ -1,0 +1,54 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "clang",
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/armclang.cmake"
+      }
+    },
+    {
+      "name": "gcc", 
+      "inherits": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/armgcc.cmake"
+      }
+    },
+    {
+      "name": "h743-clang",
+      "inherits": "clang",
+      "displayName": "H743 ARM Clang",
+      "cacheVariables": {"BOARD": "stm32h743zi"}
+    },
+    {
+      "name": "h743-gcc",
+      "inherits": "gcc",
+      "displayName": "H743 ARM GCC",
+      "cacheVariables": {"BOARD": "stm32h743zi"}
+    },
+    {
+      "name": "f407-clang",
+      "inherits": "clang",
+      "displayName": "F407 ARM Clang",
+      "cacheVariables": {"BOARD": "stm32f407zg"}
+    },
+    {
+      "name": "f407-gcc",
+      "inherits": "gcc",
+      "displayName": "F407 ARM GCC",
+      "cacheVariables": {"BOARD": "stm32f407zg"}
+    }
+  ]
+}

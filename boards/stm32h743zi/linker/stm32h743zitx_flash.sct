@@ -1,0 +1,24 @@
+; *************************************************************
+; *** Scatter-Loading Description File for STM32H743 (AC6)  ***
+; *** GNU/Clang 启动：向量表节为 .isr_vector                 ***
+; *************************************************************
+
+LR_IROM1 0x08000000 0x00200000  {    ; Flash 2MB
+  ER_IROM1 0x08000000 0x00200000  {  ; load address = exec address
+    ; 将 GNU/Clang 启动文件的向量表节放到区首
+     startup_stm32h743xx.o(RESET, +First)
+
+    *(InRoot$$Sections)
+    .ANY (+RO)
+    .ANY (+XO)
+  }
+
+  ; 内部SRAM区（请按你的芯片实际内存规划确认用途与容量）
+  RW_IRAM1 0x20000000 0x00020000  {  ; 128KB（常作DTCM，DMA不可达）
+    .ANY (+RW +ZI)
+  }
+
+  RW_IRAM2 0x24000000 0x00080000  {  ; 512KB AXI SRAM（DMA可达）
+    .ANY (+RW +ZI)
+  }
+}

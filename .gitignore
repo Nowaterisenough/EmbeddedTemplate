@@ -1,0 +1,13 @@
+# Ignore cmake generated directories and files
+build/*
+.cache/*
+
+# Ignore Visual Studio Code files
+.vscode/*
+
+# Ignore macOS files
+.DS_Store
+
+# Ignore Local history files
+.history/*
+.claude/*
