@@ -36,36 +36,56 @@ set(OUT_HEX   "${OUTPUT_DIR}/${PROJECT_NAME}.hex")
 
 # 产物（bin/hex）与 size（区分 ARMClang / GCC）
 if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
-  # 复用工具链文件里配置的 fromelf 路径；找不到再兜底
-  set(ARM_FROMELF "${CMAKE_OBJCOPY}")
-  if(NOT ARM_FROMELF OR NOT EXISTS "${ARM_FROMELF}")
-    if(DEFINED ARM_TOOLCHAIN_PATH)
-      find_program(ARM_FROMELF fromelf HINTS "${ARM_TOOLCHAIN_PATH}" REQUIRED)
-    else()
-      find_program(ARM_FROMELF fromelf REQUIRED)
-    endif()
+  # 查找 fromelf（避免与工具链变量名冲突）
+  set(FROMELF_EXE "")
+  # 优先根据编译器目录作为 hint
+  set(_CLANG_HINT_DIR "")
+  if(CMAKE_C_COMPILER)
+    get_filename_component(_CLANG_HINT_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
+  endif()
+  if(_CLANG_HINT_DIR)
+    find_program(FROMELF_EXE NAMES fromelf HINTS "${_CLANG_HINT_DIR}" NO_DEFAULT_PATH)
+  endif()
+  if(NOT FROMELF_EXE)
+    find_program(FROMELF_EXE NAMES fromelf REQUIRED)
   endif()
 
   add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${OUTPUT_DIR}"
-    COMMAND "${ARM_FROMELF}" --bin "${INPUT_ELF}" -o "${OUT_BIN}"
-    COMMAND "${ARM_FROMELF}" --i32 "${INPUT_ELF}" -o "${OUT_HEX}"
+    COMMAND "${FROMELF_EXE}" --bin "${INPUT_ELF}" -o "${OUT_BIN}"
+    COMMAND "${FROMELF_EXE}" --i32 "${INPUT_ELF}" -o "${OUT_HEX}"
     BYPRODUCTS "${OUT_BIN}" "${OUT_HEX}"
     COMMENT "Generating .bin/.hex into ${OUTPUT_DIR}"
   )
 
   add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND "${ARM_FROMELF}" --text -c "${INPUT_ELF}"
+    COMMAND "${FROMELF_EXE}" --text -c "${INPUT_ELF}"
     COMMENT "Size (fromelf)"
   )
 else()
-  find_program(CMAKE_OBJCOPY arm-none-eabi-objcopy REQUIRED)
-  # find_program(CMAKE_SIZE    arm-none-eabi-size    REQUIRED)
+  # 尝试根据 C 编译器的目录作为提示查找工具
+  set(_TOOL_HINT_DIR "")
+  if(CMAKE_C_COMPILER)
+    get_filename_component(_TOOL_HINT_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
+  endif()
+
+  # 单独变量，避免与工具链中 CMAKE_OBJCOPY 普通变量名冲突
+  if(_TOOL_HINT_DIR)
+    find_program(OBJCOPY_EXE NAMES arm-none-eabi-objcopy HINTS "${_TOOL_HINT_DIR}" NO_DEFAULT_PATH)
+    find_program(CMAKE_SIZE  NAMES arm-none-eabi-size    HINTS "${_TOOL_HINT_DIR}" NO_DEFAULT_PATH)
+  endif()
+
+  if(NOT OBJCOPY_EXE)
+    find_program(OBJCOPY_EXE NAMES arm-none-eabi-objcopy REQUIRED)
+  endif()
+  if(NOT CMAKE_SIZE)
+    find_program(CMAKE_SIZE NAMES arm-none-eabi-size REQUIRED)
+  endif()
 
   add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${OUTPUT_DIR}"
-    COMMAND ${CMAKE_OBJCOPY} -O binary "${INPUT_ELF}" "${OUT_BIN}"
-    COMMAND ${CMAKE_OBJCOPY} -O ihex   "${INPUT_ELF}" "${OUT_HEX}"
+    COMMAND "${OBJCOPY_EXE}" -O binary "${INPUT_ELF}" "${OUT_BIN}"
+    COMMAND "${OBJCOPY_EXE}" -O ihex   "${INPUT_ELF}" "${OUT_HEX}"
     BYPRODUCTS "${OUT_BIN}" "${OUT_HEX}"
     COMMENT "Generating .bin/.hex into ${OUTPUT_DIR}"
   )
