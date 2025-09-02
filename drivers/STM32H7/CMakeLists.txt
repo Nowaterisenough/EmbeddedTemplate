@@ -127,9 +127,9 @@ target_link_libraries(stm32h7_hal PUBLIC cubeh7)
 # 默认宏（具体芯片在板级注入）
 target_compile_definitions(stm32h7_hal PUBLIC USE_HAL_DRIVER)
 
-# 提供“HAL 配置头路径”的接口容器，供板级注入 config 目录
+# 提供"HAL 配置头路径"的接口容器，供板级注入 config 目录
 add_library(hal_conf INTERFACE)
-# 提供“编译宏”的接口容器，供板级注入芯片宏
+# 提供"编译宏"的接口容器，供板级注入芯片宏
 add_library(hal_defs INTERFACE)
 
 # 使 stm32h7_hal 在编译自身源码时消费 hal_conf 与 hal_defs

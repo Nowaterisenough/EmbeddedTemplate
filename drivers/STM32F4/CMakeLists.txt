@@ -1,7 +1,9 @@
-# 可选外部 STM32CubeF4 根目录；留空则使用仓库内 drivers/STM32CubeF4
-set(HAL_EXTERNAL_PATH_F4 "C:/Users/NoWat/Workspace/3rd/stm32hal/STM32CubeF4" CACHE PATH "Path to external STM32CubeF4 root")
-if(HAL_EXTERNAL_PATH_F4)
-  set(STM32CUBEF4_ROOT "${HAL_EXTERNAL_PATH_F4}")
+# drivers/STM32F4/CMakeLists.txt
+
+# 可选外部 STM32CubeF4 根目录；留空则使用仓库内 drivers/STM32F4/STM32CubeF4
+set(HAL_EXTERNAL_PATH "" CACHE PATH "Path to external STM32CubeF4 root")
+if(HAL_EXTERNAL_PATH)
+  set(STM32CUBEF4_ROOT "${HAL_EXTERNAL_PATH}")
 else()
   set(STM32CUBEF4_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/STM32CubeF4")
 endif()
@@ -9,7 +11,7 @@ endif()
 if(NOT EXISTS "${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h")
   message(FATAL_ERROR
     "未找到 STM32CubeF4 于: ${STM32CUBEF4_ROOT}\n"
-    "请将 STM32CubeF4 放到 drivers/STM32CubeF4，或配置 -DHAL_EXTERNAL_PATH_F4=C:/path/to/STM32CubeF4"
+    "请将 STM32CubeF4 放到 drivers/STM32F4/STM32CubeF4，或配置 -DHAL_EXTERNAL_PATH=C:/path/to/STM32CubeF4"
   )
 endif()
 
@@ -20,23 +22,114 @@ add_library(cubef4 INTERFACE)
 target_include_directories(cubef4 INTERFACE
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Inc
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
-  ${STM32CUBEF4_ROOT}/Drivers/CMSIS/Device/ST/STM32F4xx/Include
   ${STM32CUBEF4_ROOT}/Drivers/CMSIS/Include
+  ${STM32CUBEF4_ROOT}/Drivers/CMSIS/Device/ST/STM32F4xx/Include
 )
 
-# HAL 源清单（可按需扩展）
+# HAL 源清单（按需增删）
 set(CUBEF4_HAL_SOURCES
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ramfunc.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c
+
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c
-  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c
-  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma2d.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_lptim.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_iwdg.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_wwdg.c
+
   ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
-  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_usart.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_smbus.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_irda.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_smartcard.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sai.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sai_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spdifrx.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dfsdm.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_comp.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sd.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_mmc.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_qspi.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_nor.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_nand.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pccard.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sram.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sdram.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_eth.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cec.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hcd.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_ltdc.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_ltdc_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dcmi.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dcmi_ex.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cryp.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cryp_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hash.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_hash_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rng.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex.c
+
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_crc.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_fmpi2c.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_fmpi2c_ex.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_fmpsmbus.c
+  ${STM32CUBEF4_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_fmpsmbus_ex.c
+
   CACHE INTERNAL "HAL source files for STM32F4"
 )
+
+# HAL 静态库
+add_library(stm32f4_hal STATIC ${CUBEF4_HAL_SOURCES})
+target_link_libraries(stm32f4_hal PUBLIC cubef4)
+
+# 默认宏（具体芯片在板级注入）
+target_compile_definitions(stm32f4_hal PUBLIC USE_HAL_DRIVER)
+
+# 提供"HAL 配置头路径"的接口容器，供板级注入 config 目录
+add_library(hal_conf INTERFACE)
+# 提供"编译宏"的接口容器，供板级注入芯片宏
+add_library(hal_defs INTERFACE)
+
+# 使 stm32f4_hal 在编译自身源码时消费 hal_conf 与 hal_defs
+target_link_libraries(stm32f4_hal PUBLIC hal_conf hal_defs)
+
+# 组合接口目标
+add_library(stm32f4 INTERFACE)
+target_link_libraries(stm32f4 INTERFACE stm32f4_hal cubef4)
+
+# 导出变量到父作用域
+set(CUBEF4_HAL_SOURCES ${CUBEF4_HAL_SOURCES} PARENT_SCOPE)
