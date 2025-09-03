@@ -1,11 +1,11 @@
 ; *************************************************************
 ; *** Scatter-Loading Description File for STM32H743 (AC6)  ***
-; *** GNU/Clang 启动：向量表节为 .isr_vector                 ***
+; *** ARM 汇编启动：向量表节为 RESET                          ***
 ; *************************************************************
 
 LR_IROM1 0x08000000 0x00200000  {    ; Flash 2MB
   ER_IROM1 0x08000000 0x00200000  {  ; load address = exec address
-    ; 将 GNU/Clang 启动文件的向量表节放到区首
+    ; 将 ARM 汇编启动文件的向量表节放到区首
      startup_stm32h743xx.o(RESET, +First)
 
     *(InRoot$$Sections)

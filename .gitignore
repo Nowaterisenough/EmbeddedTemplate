@@ -11,3 +11,4 @@ build/*
 # Ignore Local history files
 .history/*
 .claude/*
+CLAUDE.md

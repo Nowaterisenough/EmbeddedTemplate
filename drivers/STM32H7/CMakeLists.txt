@@ -131,9 +131,11 @@ target_compile_definitions(stm32h7_hal PUBLIC USE_HAL_DRIVER)
 add_library(hal_conf INTERFACE)
 # 提供"编译宏"的接口容器，供板级注入芯片宏
 add_library(hal_defs INTERFACE)
+# 提供"编译选项"的接口容器，供板级注入CPU相关编译选项
+add_library(hal_compile_opts INTERFACE)
 
-# 使 stm32h7_hal 在编译自身源码时消费 hal_conf 与 hal_defs
-target_link_libraries(stm32h7_hal PUBLIC hal_conf hal_defs)
+# 使 stm32h7_hal 在编译自身源码时消费 hal_conf, hal_defs 和 hal_compile_opts
+target_link_libraries(stm32h7_hal PUBLIC hal_conf hal_defs hal_compile_opts)
 
 # 组合接口目标
 add_library(stm32h7 INTERFACE)

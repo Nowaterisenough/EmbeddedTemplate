@@ -1,10 +1,12 @@
 # boards/stm32h743zi/CMakeLists.txt
 
 # 依赖 drivers 层
-if(NOT TARGET cubeh7 OR NOT TARGET stm32h7_hal OR NOT TARGET hal_conf OR NOT TARGET hal_defs)
+if(NOT TARGET cubeh7 OR NOT TARGET stm32h7_hal OR NOT TARGET hal_conf OR NOT TARGET hal_defs OR NOT TARGET hal_compile_opts)
   message(FATAL_ERROR "请先 add_subdirectory(drivers/STM32H7)")
 endif()
 
+set(CMAKE_SYSTEM_PROCESSOR cortex-m7)
+set(CMAKE_EXE_LINKER_FLAGS_INIT "--cpu=cortex-m7")
 set(BOARD_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 # INTERFACE 目标与别名
@@ -13,8 +15,14 @@ add_library(board::stm32h743zi ALIAS board_stm32h743zi)
 set(MCU_BOARD_TARGET board::stm32h743zi PARENT_SCOPE)
 
 # 板级源文件
+if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
+  set(STARTUP_FILE ${BOARD_DIR}/startup/startup_stm32h743xx.s)
+else()
+  set(STARTUP_FILE ${BOARD_DIR}/startup/startup_stm32h743xx.s)
+endif()
+
 set(BOARD_SOURCES
-  ${BOARD_DIR}/startup/startup_stm32h743xx.s
+  ${STARTUP_FILE}
   ${BOARD_DIR}/config/stm32h7xx_it.c
   ${BOARD_DIR}/config/system_stm32h7xx.c
   ${BOARD_DIR}/board.c
@@ -41,6 +49,21 @@ target_compile_definitions(hal_defs INTERFACE
   STM32H743xx
 )
 
+# 将CPU相关编译选项注入 hal_compile_opts，让 stm32h7_hal 在编译时可见
+if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
+  target_compile_options(hal_compile_opts INTERFACE
+    -mcpu=cortex-m7
+    -mfpu=fpv5-d16
+    -mfloat-abi=hard
+  )
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(hal_compile_opts INTERFACE
+    -mcpu=cortex-m7
+    -mfpu=fpv5-d16
+    -mfloat-abi=hard
+  )
+endif()
+
 # 同时也让 board 目标本身带上这些宏（便于下游模块使用）
 target_compile_definitions(board_stm32h743zi INTERFACE
   USE_HAL_DRIVER
@@ -54,11 +77,8 @@ target_link_libraries(board_stm32h743zi INTERFACE stm32h7 cubeh7)
 if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
   target_compile_options(board_stm32h743zi INTERFACE
     -mcpu=cortex-m7
-    -mthumb
     -mfpu=fpv5-d16
     -mfloat-abi=hard
-    -ffunction-sections
-    -fdata-sections
     -O0
   )
   # 链接脚本（ARMClang .sct）
@@ -84,10 +104,6 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     -fdata-sections
     -O0
   )
-  # set(_LD ${BOARD_DIR}/linker/stm32h743zi.ld)
-  # target_link_options(board_stm32h743zi INTERFACE
-  #   -T${_LD} -Wl,--gc-sections -Wl,-Map=${CMAKE_BINARY_DIR}/app.map
-  # )
 else()
   message(WARNING "未为当前工具链设置链接脚本，请补充对应配置。")
 endif()
