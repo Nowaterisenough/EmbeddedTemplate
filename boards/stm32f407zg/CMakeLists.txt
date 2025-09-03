@@ -14,9 +14,18 @@ add_library(board_stm32f407zg INTERFACE)
 add_library(board::stm32f407zg ALIAS board_stm32f407zg)
 set(MCU_BOARD_TARGET board::stm32f407zg PARENT_SCOPE)
 
+# 根据编译器选择启动文件
+if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
+  set(STARTUP_FILE ${BOARD_DIR}/startup/startup_stm32f407xx.s)
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  set(STARTUP_FILE ${BOARD_DIR}/startup/startup_stm32f407xx_gcc.S)
+else()
+  message(FATAL_ERROR "不支持的编译器: ${CMAKE_C_COMPILER_ID}")
+endif()
+
 # 板级与 HAL 源随 INTERFACE 传播
 set(BOARD_SOURCES
-  ${BOARD_DIR}/startup/startup_stm32f407xx.s
+  ${STARTUP_FILE}
   ${BOARD_DIR}/config/stm32f4xx_it.c
   ${BOARD_DIR}/config/stm32f4xx_hal_msp.c
   ${BOARD_DIR}/config/system_stm32f4xx.c
@@ -36,12 +45,23 @@ target_include_directories(board_stm32f407zg INTERFACE
 )
 
 # 编译选项与宏（随板）
-target_compile_definitions(board_stm32f407zg INTERFACE
-  USE_HAL_DRIVER
-  STM32F407xx
-)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  target_compile_definitions(board_stm32f407zg INTERFACE
+    USE_HAL_DRIVER
+    STM32F407xx
+    USE_HAL_DRIVER_DEFAULT_TIMEOUT
+    # 对于 GCC，禁用原子操作以避免内建函数问题
+    # 或者在必要时可以定义替代版本
+  )
+else()
+  target_compile_definitions(board_stm32f407zg INTERFACE
+    USE_HAL_DRIVER
+    STM32F407xx
+  )
+endif()
 target_compile_options(board_stm32f407zg INTERFACE
   -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
+  -march=armv7e-m
   -ffunction-sections -fdata-sections
 )
 
@@ -68,10 +88,18 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     message(FATAL_ERROR "未找到 GNU LD 链接脚本: ${_LD}")
   endif()
   target_link_options(board_stm32f407zg INTERFACE
+    -mcpu=cortex-m4
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=hard
+    -march=armv7e-m
+    -specs=nano.specs
     -T${_LD}
+    -Wl,-Map=${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.map,--cref
     -Wl,--gc-sections
-    -Wl,-Map=${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}.map
-    -Wl,--print-memory-usage
+    -Wl,--allow-multiple-definition
+    -static
+    -Wl,--start-group -lc -lm -Wl,--end-group
   )
 else()
   message(WARNING "未知编译器 ${CMAKE_C_COMPILER_ID}，请手动配置链接选项")

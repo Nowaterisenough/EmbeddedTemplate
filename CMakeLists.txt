@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 cmake_policy(SET CMP0123 NEW)
 
-# 必须在project()之前设置系统和处理器
-set(CMAKE_SYSTEM_NAME Generic)
-
 project(EmbeddedTemplate C ASM)  # 启用 C 与 ASM
 
 # 根据板子设置CPU相关编译选项（在包含3rd库之前）

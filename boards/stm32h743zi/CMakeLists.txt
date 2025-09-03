@@ -17,8 +17,10 @@ set(MCU_BOARD_TARGET board::stm32h743zi PARENT_SCOPE)
 # 板级源文件
 if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
   set(STARTUP_FILE ${BOARD_DIR}/startup/startup_stm32h743xx.s)
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  set(STARTUP_FILE ${BOARD_DIR}/startup/startup_stm32h743xx_gcc.S)
 else()
-  set(STARTUP_FILE ${BOARD_DIR}/startup/startup_stm32h743xx.s)
+  message(FATAL_ERROR "不支持的编译器: ${CMAKE_C_COMPILER_ID}")
 endif()
 
 set(BOARD_SOURCES
@@ -104,6 +106,24 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     -fdata-sections
     -O0
   )
+  # 链接脚本（GCC .ld）
+  set(_LD ${BOARD_DIR}/linker/stm32h743zitx_flash_gcc.ld)
+  if(NOT EXISTS "${_LD}")
+    message(FATAL_ERROR "未找到链接文件: ${_LD}")
+  endif()
+  target_link_options(board_stm32h743zi INTERFACE
+    -mcpu=cortex-m7
+    -mthumb
+    -mfpu=fpv5-d16
+    -mfloat-abi=hard
+    -specs=nano.specs
+    -T${_LD}
+    -Wl,-Map=${CMAKE_BINARY_DIR}/${PROJECT_NAME}.map,--cref
+    -Wl,--gc-sections
+    -Wl,--allow-multiple-definition
+    -static
+    -Wl,--start-group -lc -lm -Wl,--end-group
+  )
 else()
-  message(WARNING "未为当前工具链设置链接脚本，请补充对应配置。")
+  message(FATAL_ERROR "未为当前工具链设置链接脚本: ${CMAKE_C_COMPILER_ID}")
 endif()

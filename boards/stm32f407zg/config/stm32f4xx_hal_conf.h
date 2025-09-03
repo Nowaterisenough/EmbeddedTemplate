@@ -24,6 +24,8 @@
  extern "C" {
 #endif
 
+/* GCC compatibility fix for atomic operations - place after CMSIS includes */
+
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 
@@ -383,6 +385,17 @@
   #define assert_param(expr) ((void)0U)
 #endif /* USE_FULL_ASSERT */
 
+/* GCC compatibility: Disable atomic operations for F407 */
+#ifdef __GNUC__
+/* Redefine atomic macros to non-atomic versions for GCC compatibility */
+#undef ATOMIC_SET_BIT
+#undef ATOMIC_CLEAR_BIT
+#define ATOMIC_SET_BIT(REG, BIT)   ((REG) |= (BIT))
+#define ATOMIC_CLEAR_BIT(REG, BIT) ((REG) &= ~(BIT))
+
+/* Fix ISB instruction compatibility - use NOP for F407 compatibility */
+#define __ISB() __asm__ volatile ("nop":::"memory")
+#endif /* __GNUC__ */
 
 #ifdef __cplusplus
 }

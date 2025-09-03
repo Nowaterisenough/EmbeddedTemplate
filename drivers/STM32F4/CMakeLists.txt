@@ -118,6 +118,17 @@ target_link_libraries(stm32f4_hal PUBLIC cubef4)
 # 默认宏（具体芯片在板级注入）
 target_compile_definitions(stm32f4_hal PUBLIC USE_HAL_DRIVER)
 
+# GCC specific flags for ARM Cortex-M4 
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(stm32f4_hal PRIVATE
+    -mcpu=cortex-m4
+    -mthumb
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=hard
+    -march=armv7e-m
+  )
+endif()
+
 # 提供"HAL 配置头路径"的接口容器，供板级注入 config 目录
 add_library(hal_conf INTERFACE)
 # 提供"编译宏"的接口容器，供板级注入芯片宏
