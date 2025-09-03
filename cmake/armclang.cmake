@@ -71,9 +71,9 @@ set(CMAKE_CXX_OUTPUT_EXTENSION .o)
 set(CMAKE_ASM_OUTPUT_EXTENSION .o)
 
 # 设置基础编译标志（MCU特定选项由board配置）
-set(CMAKE_C_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb")
-set(CMAKE_CXX_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb")
-set(CMAKE_ASM_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb -masm=auto")
+set(CMAKE_C_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb -O0 -g")
+set(CMAKE_CXX_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb -O0 -g")
+set(CMAKE_ASM_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb -masm=auto -g")
 
 # 跳过编译器测试（交叉编译环境）
 set(CMAKE_C_COMPILER_WORKS TRUE)

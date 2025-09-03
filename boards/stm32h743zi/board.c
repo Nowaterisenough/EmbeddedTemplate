@@ -9,6 +9,12 @@ static void SystemClock_Config(void);
 
 void board_init(void)
 {
+    /* Enable I-Cache---------------------------------------------------------*/
+    SCB_EnableICache();
+
+    /* Enable D-Cache---------------------------------------------------------*/
+    SCB_EnableDCache();
+
     HAL_Init();
     SystemClock_Config();
     
@@ -89,6 +95,9 @@ static void SystemClock_Config(void)
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
     HAL_StatusTypeDef ret;
 
+    /* 使能供电配置更新 */
+    MODIFY_REG(PWR->CR3, PWR_CR3_SCUEN, 0);
+
     /* 电源与电压缩放 */
     HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
@@ -99,8 +108,13 @@ static void SystemClock_Config(void)
     RCC_OscInitStruct.LSEState = RCC_LSE_ON;
     */
 
-    /* 先提高 Flash 等待周期，避免切换到高频时过冲 */
-    __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_5);
+    /* 先设置最高 Flash 等待周期，避免切换到高频时过冲 */
+    __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_7);
+    if (__HAL_FLASH_GET_LATENCY() != FLASH_LATENCY_7)
+    {
+        /* Flash latency setting failed */
+        while (1) { }
+    }
 
     /* 启用外部无源晶振 HSE，并配置 PLL1 以得到 SYSCLK = 240 MHz */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
@@ -113,13 +127,13 @@ static void SystemClock_Config(void)
 
     /* HSE = 25 MHz
        VCOin  = 25 / M = 5 MHz (范围 4~8 MHz，对应 VCI RANGE_2)
-       VCOout = 5 * N = 480 MHz
-       PLL1P  = 480 / 2 = 240 MHz -> SYSCLK
-       PLL1Q  = 480 / 4 = 120 MHz -> 可用于 USB/SDMMC/SAI 等
-       PLL1R  = 480 / 2 = 240 MHz -> 备用
+       VCOout = 5 * N = 800 MHz
+       PLL1P  = 800 / 2 = 400 MHz -> SYSCLK
+       PLL1Q  = 800 / 4 = 200 MHz -> 可用于 USB/SDMMC/SAI 等
+       PLL1R  = 800 / 2 = 400 MHz -> 备用
     */
     RCC_OscInitStruct.PLL.PLLM      = 5;
-    RCC_OscInitStruct.PLL.PLLN      = 96;
+    RCC_OscInitStruct.PLL.PLLN      = 160;
     RCC_OscInitStruct.PLL.PLLP      = 2;
     RCC_OscInitStruct.PLL.PLLQ      = 4;
     RCC_OscInitStruct.PLL.PLLR      = 2;
@@ -131,27 +145,41 @@ static void SystemClock_Config(void)
     ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
     if (ret != HAL_OK)
     {
+        /* HAL_RCC_OscConfig failed */
         while (1) { }
     }
 
     /* 选择 PLL1 为系统时钟，配置各总线分频 */
-    RCC_ClkInitStruct.ClockType      = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK
-                                     | RCC_CLOCKTYPE_D1PCLK1 | RCC_CLOCKTYPE_PCLK1
-                                     | RCC_CLOCKTYPE_PCLK2  | RCC_CLOCKTYPE_D3PCLK1;
+    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK  | \
+                                   RCC_CLOCKTYPE_HCLK    | \
+                                   RCC_CLOCKTYPE_D1PCLK1 | \
+                                   RCC_CLOCKTYPE_PCLK1   | \
+                                   RCC_CLOCKTYPE_PCLK2   | \
+                                   RCC_CLOCKTYPE_D3PCLK1);
 
-    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK; /* 240 MHz */
-    RCC_ClkInitStruct.SYSCLKDivider  = RCC_SYSCLK_DIV1;         /* 240 MHz */
-    RCC_ClkInitStruct.AHBCLKDivider  = RCC_HCLK_DIV2;           /* 120 MHz */
-    RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;           /* 60 MHz */
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;           /* 60 MHz */
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;           /* 60 MHz */
-    RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;           /* 60 MHz */
+    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK; /* 400 MHz */
+    RCC_ClkInitStruct.SYSCLKDivider  = RCC_SYSCLK_DIV1;         /* 400 MHz */
+    RCC_ClkInitStruct.AHBCLKDivider  = RCC_HCLK_DIV2;           /* 200 MHz */
+    RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;           /* 100 MHz */
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;           /* 100 MHz */
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;           /* 100 MHz */
+    RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;           /* 100 MHz */
 
-    /* HAL v1.11.5 更保守，240 MHz 建议使用 FLASH_LATENCY_4（若经高温/低压验证稳定，可尝试 3） */
-    ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
+    /* 先尝试更保守的Flash延迟设置 */
+    ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7);
     if (ret != HAL_OK)
     {
-        while (1) { }
+        /* Try with different flash latency */
+        ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_6);
+        if (ret != HAL_OK)
+        {
+            ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
+            if (ret != HAL_OK)
+            {
+                /* HAL_RCC_ClockConfig failed with all latencies */
+                while (1) { }
+            }
+        }
     }
 
     /* 如需 USB 48 MHz，可后续配置 PLL3 或者从 120 MHz 进一步分频生成，视工程而定 */
