@@ -45,14 +45,52 @@ git clone --recursive https://github.com/Nowaterisenough/EmbeddedTemplate.git
 ```
 
 ### 2. Configure Environment Variables
-Configure toolchain paths in `.vscode/settings.json`:
 
+**Method 1: System Environment Variables (Recommended)**
+
+Add to system environment variables:
+```
+ARM_CLANG_PATH=C:\path\to\ArmCompiler6.xx\bin
+ARM_GCC_PATH=C:\path\to\arm-gnu-toolchain\bin
+```
+
+**Method 2: Command Line Temporary Setup**
+
+Windows PowerShell:
+```powershell
+$env:ARM_CLANG_PATH="C:\path\to\ArmCompiler6.xx\bin"
+$env:ARM_GCC_PATH="C:\path\to\arm-gnu-toolchain\bin"
+```
+
+Windows CMD:
+```cmd
+set ARM_CLANG_PATH=C:\path\to\ArmCompiler6.xx\bin
+set ARM_GCC_PATH=C:\path\to\arm-gnu-toolchain\bin
+```
+
+Linux/macOS:
+```bash
+export ARM_CLANG_PATH="/path/to/ArmCompiler6.xx/bin"
+export ARM_GCC_PATH="/path/to/arm-gnu-toolchain/bin"
+```
+
+**Method 3: VS Code Workspace Configuration**
+
+Configure in `.vscode/settings.json` (VS Code only):
 ```json
 {
   "cmake.configureEnvironment": {
     "ARM_CLANG_PATH": "C:/path/to/ArmCompiler6.xx/bin",
     "ARM_GCC_PATH": "C:/path/to/arm-gnu-toolchain/bin"
-  },
+  }
+}
+```
+
+**Debug Tools Configuration (Optional)**
+
+For debugging in VS Code, add to `.vscode/settings.json`:
+```json
+{
   "cortex-debug.gdbPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-gdb.exe",
   "cortex-debug.objdumpPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-objdump.exe",
   "cortex-debug.JLinkGDBServerPath": "C:/Program Files/SEGGER/JLink_Vxxx/JLinkGDBServerCL.exe"

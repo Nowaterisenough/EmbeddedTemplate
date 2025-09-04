@@ -45,14 +45,52 @@ git clone --recursive https://github.com/Nowaterisenough/EmbeddedTemplate.git
 ```
 
 ### 2. 配置环境变量
-在 `.vscode/settings.json` 中配置工具链路径：
 
+**方法一：系统环境变量（推荐）**
+
+在系统环境变量中添加：
+```
+ARM_CLANG_PATH=C:\path\to\ArmCompiler6.xx\bin
+ARM_GCC_PATH=C:\path\to\arm-gnu-toolchain\bin
+```
+
+**方法二：命令行临时设置**
+
+Windows PowerShell:
+```powershell
+$env:ARM_CLANG_PATH="C:\path\to\ArmCompiler6.xx\bin"
+$env:ARM_GCC_PATH="C:\path\to\arm-gnu-toolchain\bin"
+```
+
+Windows CMD:
+```cmd
+set ARM_CLANG_PATH=C:\path\to\ArmCompiler6.xx\bin
+set ARM_GCC_PATH=C:\path\to\arm-gnu-toolchain\bin
+```
+
+Linux/macOS:
+```bash
+export ARM_CLANG_PATH="/path/to/ArmCompiler6.xx/bin"
+export ARM_GCC_PATH="/path/to/arm-gnu-toolchain/bin"
+```
+
+**方法三：VS Code工作区配置**
+
+在 `.vscode/settings.json` 中配置（仅VS Code环境）：
 ```json
 {
   "cmake.configureEnvironment": {
     "ARM_CLANG_PATH": "C:/path/to/ArmCompiler6.xx/bin",
     "ARM_GCC_PATH": "C:/path/to/arm-gnu-toolchain/bin"
-  },
+  }
+}
+```
+
+**调试工具配置（可选）**
+
+如需在VS Code中进行调试，在 `.vscode/settings.json` 中添加：
+```json
+{
   "cortex-debug.gdbPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-gdb.exe",
   "cortex-debug.objdumpPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-objdump.exe",
   "cortex-debug.JLinkGDBServerPath": "C:/Program Files/SEGGER/JLink_Vxxx/JLinkGDBServerCL.exe"
