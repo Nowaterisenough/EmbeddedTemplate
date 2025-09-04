@@ -1,93 +1,124 @@
-# GroundStation
+# EmbeddedTemplate
 
+**中文** | [English](README_EN.md)
 
+一个现代化的STM32嵌入式开发模板，支持多种工具链和开发板。
 
-## Getting started
+## 特性
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- 多工具链支持：ARM GCC 和 ARM Clang (Keil MDK)
+- 多开发板支持：STM32F407ZG、STM32H743ZI 
+- 模块化架构：清晰的目录结构和CMake组织
+- VS Code集成：完整的开发环境配置
+- 调试支持：集成RTT (Real-Time Transfer) 调试输出
+- 现代构建系统：基于CMake和Ninja的快速构建
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## 支持的硬件
 
-## Add your files
+| 开发板 | MCU | 架构 | 工具链 |
+|--------|-----|------|--------|
+| STM32F407ZG | STM32F407ZGT6 | Cortex-M4 | GCC, Clang |
+| STM32H743ZI | STM32H743ZIT6 | Cortex-M7 | GCC, Clang |
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 环境要求
+
+### 必需工具
+- VS Code 1.60+
+- CMake 3.20+
+- Ninja Build
+- CMake Tools 扩展
+
+### 工具链
+**ARM GCC** (推荐)
+- 版本：GNU Arm Embedded Toolchain 10.3+
+- 下载：[ARM Developer](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm)
+
+**ARM Clang** (可选)
+- 版本：ARM Compiler 6.16+
+- 来源：Keil MDK 或 ARM Development Studio
+
+## 快速开始
+
+### 1. 克隆项目
+```bash
+git clone --recursive https://github.com/Nowaterisenough/EmbeddedTemplate.git
+```
+
+### 2. 配置环境变量
+在 `.vscode/settings.json` 中配置工具链路径：
+
+```json
+{
+  "cmake.configureEnvironment": {
+    "ARM_CLANG_PATH": "C:/path/to/ArmCompiler6.xx/bin",
+    "ARM_GCC_PATH": "C:/path/to/arm-gnu-toolchain/bin"
+  },
+  "cortex-debug.gdbPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-gdb.exe",
+  "cortex-debug.objdumpPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-objdump.exe",
+  "cortex-debug.JLinkGDBServerPath": "C:/Program Files/SEGGER/JLink_Vxxx/JLinkGDBServerCL.exe"
+}
+```
+
+### 3. 选择构建配置
+在VS Code中：
+1. 打开命令面板 (Ctrl+Shift+P)
+2. 选择 `CMake: Select Configure Preset`
+3. 选择目标配置：
+   - `h743-gcc` - H743开发板 + ARM GCC
+   - `h743-clang` - H743开发板 + ARM Clang
+   - `f407-gcc` - F407开发板 + ARM GCC
+   - `f407-clang` - F407开发板 + ARM Clang
+
+### 4. 构建项目
+按 F7 或运行：
+```bash
+cmake --build build
+```
+
+### 5. 输出文件
+构建完成后在 `build/bin/<board>/` 目录下生成：
+- `*.elf` - 可执行文件
+- `*.bin` - 二进制镜像
+- `*.hex` - Intel HEX格式
+- `*.map` - 内存映射文件
+
+## 项目结构
 
 ```
-cd existing_repo
-git remote add origin http://gitlab.example.com/avionics/groundstation.git
-git branch -M main
-git push -uf origin main
+EmbeddedTemplate/
+├── 3rd/                    # 第三方库
+│   └── RTT/                # SEGGER RTT调试库
+├── app/                    # 应用程序代码
+├── boards/                 # 开发板支持包
+│   ├── stm32f407zg/       # STM32F407ZG开发板
+│   └── stm32h743zi/       # STM32H743ZI开发板
+├── cmake/                  # CMake工具链文件
+│   └── toolchains/
+│       ├── arm-none-eabi-gcc.cmake
+│       └── arm-none-eabi-clang.cmake
+├── drivers/                # 硬件抽象层
+│   ├── STM32F4/           # STM32F4 HAL
+│   └── STM32H7/           # STM32H7 HAL
+├── include/               # 公共头文件
+├── middleware/            # 中间件
+├── modules/               # 功能模块
+└── tests/                 # 测试代码
 ```
 
-## Integrate with your tools
+## 调试
 
-- [ ] [Set up project integrations](http://gitlab.example.com/avionics/groundstation/-/settings/integrations)
+项目集成了SEGGER RTT，支持实时调试输出：
 
-## Collaborate with your team
+```c
+#include "SEGGER_RTT.h"
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+// 使用RTT输出
+SEGGER_RTT_printf(0, "Hello RTT!\n");
 
-## Test and Deploy
+// 或使用重定向的printf
+printf("Debug: value = %d\n", value);
+```
 
-Use the built-in continuous integration in GitLab.
+## 许可证
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。

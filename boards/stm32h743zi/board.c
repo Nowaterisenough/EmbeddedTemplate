@@ -17,7 +17,6 @@ void board_init(void)
 
     HAL_Init();
     SystemClock_Config();
-    
 
     HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_2);
 }
@@ -91,9 +90,9 @@ void board_led(uint16_t led, uint8_t state)
 /* 你的原实现保持不变 -----------------------*/
 static void SystemClock_Config(void)
 {
-    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-    HAL_StatusTypeDef ret;
+    RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
+    HAL_StatusTypeDef  ret;
 
     /* 使能供电配置更新 */
     MODIFY_REG(PWR->CR3, PWR_CR3_SCUEN, 0);
@@ -101,7 +100,8 @@ static void SystemClock_Config(void)
     /* 电源与电压缩放 */
     HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-    while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+    while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {
+    }
 
     /* 如需 LSE（RTC），可在此启用
     RCC_OscInitStruct.OscillatorType |= RCC_OSCILLATORTYPE_LSE;
@@ -110,20 +110,20 @@ static void SystemClock_Config(void)
 
     /* 先设置最高 Flash 等待周期，避免切换到高频时过冲 */
     __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_7);
-    if (__HAL_FLASH_GET_LATENCY() != FLASH_LATENCY_7)
-    {
+    if (__HAL_FLASH_GET_LATENCY() != FLASH_LATENCY_7) {
         /* Flash latency setting failed */
-        while (1) { }
+        while (1) {
+        }
     }
 
     /* 启用外部无源晶振 HSE，并配置 PLL1 以得到 SYSCLK = 240 MHz */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    RCC_OscInitStruct.HSEState       = RCC_HSE_ON;      /* 野火板为晶振，非 BYPASS */
+    RCC_OscInitStruct.HSEState       = RCC_HSE_ON; /* 野火板为晶振，非 BYPASS */
     RCC_OscInitStruct.HSIState       = RCC_HSI_OFF;
     RCC_OscInitStruct.CSIState       = RCC_CSI_OFF;
 
-    RCC_OscInitStruct.PLL.PLLState   = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource  = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLState  = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 
     /* HSE = 25 MHz
        VCOin  = 25 / M = 5 MHz (范围 4~8 MHz，对应 VCI RANGE_2)
@@ -132,30 +132,26 @@ static void SystemClock_Config(void)
        PLL1Q  = 800 / 4 = 200 MHz -> 可用于 USB/SDMMC/SAI 等
        PLL1R  = 800 / 2 = 400 MHz -> 备用
     */
-    RCC_OscInitStruct.PLL.PLLM      = 5;
-    RCC_OscInitStruct.PLL.PLLN      = 160;
-    RCC_OscInitStruct.PLL.PLLP      = 2;
-    RCC_OscInitStruct.PLL.PLLQ      = 4;
-    RCC_OscInitStruct.PLL.PLLR      = 2;
-    RCC_OscInitStruct.PLL.PLLFRACN  = 0;
+    RCC_OscInitStruct.PLL.PLLM     = 5;
+    RCC_OscInitStruct.PLL.PLLN     = 160;
+    RCC_OscInitStruct.PLL.PLLP     = 2;
+    RCC_OscInitStruct.PLL.PLLQ     = 4;
+    RCC_OscInitStruct.PLL.PLLR     = 2;
+    RCC_OscInitStruct.PLL.PLLFRACN = 0;
 
     RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
     RCC_OscInitStruct.PLL.PLLRGE    = RCC_PLL1VCIRANGE_2; /* 4-8 MHz */
 
     ret = HAL_RCC_OscConfig(&RCC_OscInitStruct);
-    if (ret != HAL_OK)
-    {
+    if (ret != HAL_OK) {
         /* HAL_RCC_OscConfig failed */
-        while (1) { }
+        while (1) {
+        }
     }
 
     /* 选择 PLL1 为系统时钟，配置各总线分频 */
-    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK  | \
-                                   RCC_CLOCKTYPE_HCLK    | \
-                                   RCC_CLOCKTYPE_D1PCLK1 | \
-                                   RCC_CLOCKTYPE_PCLK1   | \
-                                   RCC_CLOCKTYPE_PCLK2   | \
-                                   RCC_CLOCKTYPE_D3PCLK1);
+    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_D1PCLK1 |
+                                   RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2 | RCC_CLOCKTYPE_D3PCLK1);
 
     RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK; /* 400 MHz */
     RCC_ClkInitStruct.SYSCLKDivider  = RCC_SYSCLK_DIV1;         /* 400 MHz */
@@ -167,18 +163,10 @@ static void SystemClock_Config(void)
 
     /* 先尝试更保守的Flash延迟设置 */
     ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7);
-    if (ret != HAL_OK)
-    {
-        /* Try with different flash latency */
-        ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_6);
-        if (ret != HAL_OK)
-        {
-            ret = HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
-            if (ret != HAL_OK)
-            {
-                /* HAL_RCC_ClockConfig failed with all latencies */
-                while (1) { }
-            }
+    if (ret != HAL_OK) {
+
+        /* HAL_RCC_ClockConfig failed with all latencies */
+        while (1) {
         }
     }
 

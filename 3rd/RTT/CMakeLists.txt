@@ -63,6 +63,11 @@ if(DEFINED BOARD_COMPILE_OPTIONS)
   target_compile_options(RTT PRIVATE ${BOARD_COMPILE_OPTIONS})
 endif()
 
+# 链接到hal_compile_opts以获得CPU相关编译选项
+if(TARGET hal_compile_opts)
+  target_link_libraries(RTT PRIVATE hal_compile_opts)
+endif()
+
 set_target_properties(RTT PROPERTIES
   C_STANDARD 11
   C_STANDARD_REQUIRED ON
