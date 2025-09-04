@@ -1,8 +1,8 @@
 # boards/stm32f407zg/CMakeLists.txt
 
-# 依赖 drivers 层已定义的 HAL 源清单与供应商头目标
-if(NOT DEFINED CUBEF4_HAL_SOURCES)
-  message(FATAL_ERROR "CUBEF4_HAL_SOURCES 未定义，请先 add_subdirectory(drivers)")
+# 依赖 drivers 层
+if(NOT TARGET cubef4 OR NOT TARGET stm32f4_hal OR NOT TARGET hal_conf OR NOT TARGET hal_defs OR NOT TARGET hal_compile_opts)
+  message(FATAL_ERROR "请先 add_subdirectory(drivers/STM32F4)")
 endif()
 
 set(BOARD_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -32,10 +32,8 @@ set(BOARD_SOURCES
   ${BOARD_DIR}/board.c
 )
 
-target_sources(board_stm32f407zg INTERFACE
-  ${BOARD_SOURCES}
-  ${CUBEF4_HAL_SOURCES}
-)
+# 源文件随接口传播
+target_sources(board_stm32f407zg INTERFACE ${BOARD_SOURCES})
 
 # 头文件路径：板根与 config；工程公共头可按需添加
 target_include_directories(board_stm32f407zg INTERFACE
@@ -65,12 +63,34 @@ target_compile_options(board_stm32f407zg INTERFACE
   -ffunction-sections -fdata-sections
 )
 
-# 为HAL配置提供头文件路径
-target_include_directories(hal_conf INTERFACE ${BOARD_DIR}/config)
-target_compile_definitions(hal_defs INTERFACE STM32F407xx)
+# 将板级 config 目录注入 hal_conf，让 HAL 源能找到 stm32f4xx_hal_conf.h
+target_include_directories(hal_conf INTERFACE
+  ${BOARD_DIR}/config
+)
 
-# 供应商头（CMSIS/HAL）
-target_link_libraries(board_stm32f407zg INTERFACE cubef4)
+# 把芯片宏与 USE_HAL_DRIVER 注入 hal_defs，让 stm32f4_hal 在编译时可见
+target_compile_definitions(hal_defs INTERFACE
+  USE_HAL_DRIVER
+  STM32F407xx
+)
+
+# 将CPU相关编译选项注入 hal_compile_opts，让 stm32f4_hal 在编译时可见
+if(CMAKE_C_COMPILER_ID STREQUAL "ARMClang")
+  target_compile_options(hal_compile_opts INTERFACE
+    -mcpu=cortex-m4
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=hard
+  )
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(hal_compile_opts INTERFACE
+    -mcpu=cortex-m4
+    -mfpu=fpv4-sp-d16
+    -mfloat-abi=hard
+  )
+endif()
+
+# 与供应商头/库链接
+target_link_libraries(board_stm32f407zg INTERFACE stm32f4 cubef4)
 
 # 链接脚本（ARMClang 使用 .sct；GCC 使用 .ld）
 set(_SCT ${BOARD_DIR}/linker/stm32f407zgtx_flash.sct)
