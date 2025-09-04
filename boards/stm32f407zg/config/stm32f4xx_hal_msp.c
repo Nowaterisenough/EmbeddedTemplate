@@ -5,7 +5,8 @@
   ******************************************************************************
   */
 
-#include "main.h"
+
+#include "stm32f4xx_hal.h"
 
 /**
   * @brief  Initializes the Global MSP.

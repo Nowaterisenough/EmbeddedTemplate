@@ -11,20 +11,20 @@
       }
     },
     {
-      "name": "clang",
+      "name": "arm-clang",
       "inherits": "base",
       "hidden": true,
-      "toolchainFile": "${sourceDir}/cmake/armclang.cmake"
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-clang.cmake"
     },
     {
-      "name": "gcc",
+      "name": "arm-gcc",
       "inherits": "base",
       "hidden": true,
-      "toolchainFile": "${sourceDir}/cmake/armgcc.cmake"
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake"
     },
     {
       "name": "h743-clang",
-      "inherits": "clang",
+      "inherits": "arm-clang",
       "displayName": "H743 ARM Clang",
       "cacheVariables": {
         "BOARD": "stm32h743zi"
@@ -32,7 +32,7 @@
     },
     {
       "name": "h743-gcc",
-      "inherits": "gcc",
+      "inherits": "arm-gcc",
       "displayName": "H743 ARM GCC",
       "cacheVariables": {
         "BOARD": "stm32h743zi"
@@ -40,7 +40,7 @@
     },
     {
       "name": "f407-clang",
-      "inherits": "clang",
+      "inherits": "arm-clang",
       "displayName": "F407 ARM Clang",
       "cacheVariables": {
         "BOARD": "stm32f407zg"
@@ -48,7 +48,7 @@
     },
     {
       "name": "f407-gcc",
-      "inherits": "gcc",
+      "inherits": "arm-gcc",
       "displayName": "F407 ARM GCC",
       "cacheVariables": {
         "BOARD": "stm32f407zg"
