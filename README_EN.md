@@ -82,15 +82,7 @@ Configure in `.vscode/settings.json` (VS Code only):
   "cmake.configureEnvironment": {
     "ARM_CLANG_PATH": "C:/path/to/ArmCompiler6.xx/bin",
     "ARM_GCC_PATH": "C:/path/to/arm-gnu-toolchain/bin"
-  }
-}
-```
-
-**Debug Tools Configuration (Optional)**
-
-For debugging in VS Code, add to `.vscode/settings.json`:
-```json
-{
+  },
   "cortex-debug.gdbPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-gdb.exe",
   "cortex-debug.objdumpPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-objdump.exe",
   "cortex-debug.JLinkGDBServerPath": "C:/Program Files/SEGGER/JLink_Vxxx/JLinkGDBServerCL.exe"
@@ -156,6 +148,90 @@ SEGGER_RTT_printf(0, "Hello RTT!\n");
 // Or use redirected printf
 printf("Debug: value = %d\n", value);
 ```
+
+### VS Code Cortex Debug Configuration (Optional)
+
+For J-Link debugging in VS Code, add the following configurations to `.vscode/launch.json`:
+
+**STM32H743ZI Debug Configuration:**
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug STM32H743 (ARM GCC)",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/bin/stm32h743zi/EmbeddedTemplate.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "servertype": "jlink",
+            "device": "STM32H743ZI",
+            "interface": "swd",
+            "serialNumber": "",
+            "showDevDebugOutput": "parsed",
+            "swoConfig": {
+                "enabled": true,
+                "cpuFrequency": 400000000,
+                "swoFrequency": 4000000,
+                "source": "probe"
+            },
+            "gdbPath": "${config:cortex-debug.gdbPath}",
+            "toolchainPrefix": "arm-none-eabi",
+            "objdumpPath": "${config:cortex-debug.objdumpPath}",
+            "serverpath": "${config:cortex-debug.JLinkGDBServerPath}",
+            "serverArgs": [
+                "-if", "swd", "-device", "STM32H743ZI", "-endian", "little",
+                "-speed", "4000", "-nogui", "-singlerun"
+            ],
+            "postLaunchCommands": [
+                "monitor reset",
+                "monitor halt"
+            ]
+        }
+    ]
+}
+```
+
+**STM32F407ZG Debug Configuration:**
+```json
+{
+    "name": "Debug STM32F407 (ARM GCC)",
+    "cwd": "${workspaceFolder}",
+    "executable": "${workspaceFolder}/build/bin/stm32f407zg/EmbeddedTemplate.elf",
+    "request": "launch",
+    "type": "cortex-debug",
+    "runToEntryPoint": "main",
+    "servertype": "jlink",
+    "device": "STM32F407ZG",
+    "interface": "swd",
+    "serialNumber": "",
+    "showDevDebugOutput": "parsed",
+    "swoConfig": {
+        "enabled": true,
+        "cpuFrequency": 168000000,
+        "swoFrequency": 4000000,
+        "source": "probe"
+    },
+    "gdbPath": "${config:cortex-debug.gdbPath}",
+    "toolchainPrefix": "arm-none-eabi",
+    "objdumpPath": "${config:cortex-debug.objdumpPath}",
+    "serverpath": "${config:cortex-debug.JLinkGDBServerPath}",
+    "serverArgs": [
+        "-if", "swd", "-device", "STM32F407ZG", "-endian", "little",
+        "-speed", "4000", "-nogui", "-singlerun"
+    ],
+    "postLaunchCommands": [
+        "monitor reset",
+        "monitor halt"
+    ]
+}
+```
+
+**Debug Prerequisites:**
+- Install Cortex-Debug extension
+- Configure toolchain paths (see environment variables above)
+- Connect J-Link debugger to target board
 
 ## License
 

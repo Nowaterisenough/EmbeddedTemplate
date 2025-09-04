@@ -125,13 +125,13 @@ BraceWrapping:
   # 在 class 后换行
   AfterClass: true
   # 在控制语句后换行
-  AfterControlStatement: MultiLine
+  AfterControlStatement: Always
   # 在 enum 后换行
   AfterEnum: true
   # 在函数定义后换行
   AfterFunction: true
   # 在 namespace 后换行
-  AfterNamespace: false
+  AfterNamespace: true
   # 在结构体后换行
   AfterStruct: true
   # 在联合体后换行
@@ -139,13 +139,13 @@ BraceWrapping:
   # 在 extern 后换行
   AfterExternBlock: true
   # 在 catch 后换行
-  BeforeCatch: false
+  BeforeCatch: true
   # 在 else 后换行
-  BeforeElse: false
+  BeforeElse: true
   # 在 lambda 后换行
-  BeforeLambdaBody: false
+  BeforeLambdaBody: true
   # 在 while 前换行
-  BeforeWhile: false
+  BeforeWhile: true
   # 换行缩进括号
   IndentBraces: false
   # 空函数的大括号换行
