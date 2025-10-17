@@ -28,6 +28,20 @@ void board_led_set(board_led_id_t led, led_state_t state);
 void board_led_toggle(board_led_id_t led);
 
 /* 错误处理 */
+typedef struct {
+    const char *file;
+    uint32_t    line;
+    const char *func;
+} board_error_info_t;
+
 void board_fatal_halt(void);
+void board_error_handler(const char *file, uint32_t line, const char *func);
+
+/* 宏：便于记录错误来源 */
+#define BOARD_ASSERT(cond) do { \
+    if (!(cond)) { \
+        board_error_handler(__FILE__, __LINE__, __func__); \
+    } \
+} while(0)
 
 #endif // BOARD_H

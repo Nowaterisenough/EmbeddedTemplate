@@ -182,9 +182,28 @@ static void SystemClock_Config(void)
     /* 如需 USB 48 MHz，可后续配置 PLL3 或者从 120 MHz 进一步分频生成，视工程而定 */
 }
 
+/* 错误信息存储（用于调试） */
+static volatile board_error_info_t last_error = {0};
+
+void board_error_handler(const char *file, uint32_t line, const char *func)
+{
+    /* 记录错误信息 */
+    last_error.file = file;
+    last_error.line = line;
+    last_error.func = func;
+
+    /* 在调试器中设置断点可查看 last_error */
+    board_fatal_halt();
+}
+
 void board_fatal_halt(void)
 {
     __disable_irq();
     while (1) {
+        /* 可选：LED 闪烁表示错误状态 */
+        #if BOARD_HAS_LED && defined(DEBUG)
+        board_led_toggle(BOARD_LED_1);
+        for (volatile uint32_t i = 0; i < 1000000; i++);
+        #endif
     }
 }
