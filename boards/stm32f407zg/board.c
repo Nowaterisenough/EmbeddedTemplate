@@ -45,7 +45,7 @@ static void SystemClock_Config(void)
     RCC_OscInitStruct.PLL.PLLQ            = 7;    /* USB = 336/7 = 48 MHz */
 
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-        Error_Handler();
+        board_fatal_halt();
     }
 
     /* 配置系统时钟和总线分频 */
@@ -58,7 +58,7 @@ static void SystemClock_Config(void)
 
     /* Flash 延迟 5 等待周期 (168MHz @ 3.3V) */
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
-        Error_Handler();
+        board_fatal_halt();
     }
 }
 
@@ -76,7 +76,6 @@ uint32_t board_millis(void)
 typedef struct {
     GPIO_TypeDef *port;
     uint16_t      pin;
-    void        (*clk_enable)(void);
 } led_map_t;
 
 static const led_map_t led_map[] = BOARD_LED_MAP;
@@ -93,10 +92,8 @@ void board_led_init(void)
     for (size_t i = 0; i < BOARD_LED_MAX; i++) {
         if (led_map[i].port == NULL) continue;
 
-        /* 使能时钟 */
-        if (led_map[i].clk_enable) {
-            led_map[i].clk_enable();
-        }
+        /* 使能时钟（根据端口地址判断） */
+        if (led_map[i].port == GPIOD) __HAL_RCC_GPIOD_CLK_ENABLE();
 
         /* 初始化 GPIO */
         gpio_init.Pin = led_map[i].pin;

@@ -37,7 +37,6 @@ uint32_t board_millis(void)
 typedef struct {
     GPIO_TypeDef *port;
     uint16_t      pin;
-    void        (*clk_enable)(void);
 } led_map_t;
 
 static const led_map_t led_map[] = BOARD_LED_MAP;
@@ -54,10 +53,8 @@ void board_led_init(void)
     for (size_t i = 0; i < BOARD_LED_MAX; i++) {
         if (led_map[i].port == NULL) continue;
 
-        /* 使能时钟 */
-        if (led_map[i].clk_enable) {
-            led_map[i].clk_enable();
-        }
+        /* 使能时钟（根据端口地址判断） */
+        if (led_map[i].port == GPIOH) __HAL_RCC_GPIOH_CLK_ENABLE();
 
         /* 初始化 GPIO */
         gpio_init.Pin = led_map[i].pin;

@@ -7,5 +7,6 @@ project(EmbeddedTemplate C ASM)  # 启用 C 与 ASM
 add_subdirectory(drivers)
 add_subdirectory(3rd)
 add_subdirectory(boards)
+add_subdirectory(modules)
 add_subdirectory(app)
 

@@ -14,7 +14,6 @@ extern "C" {
 
 /* STM32 Family includes */
 #include "stm32f4xx_hal.h"
-#include "main.h"
 
 /* Board specific defines */
 #define BOARD_STM32F407ZG 1
@@ -22,10 +21,10 @@ extern "C" {
 
 /* LED 硬件映射表：定义逻辑 LED 到物理引脚的映射 */
 #define BOARD_LED_MAP { \
-    {GPIOD, GPIO_PIN_12, __HAL_RCC_GPIOD_CLK_ENABLE}, /* BOARD_LED_1 */ \
-    {GPIOD, GPIO_PIN_13, __HAL_RCC_GPIOD_CLK_ENABLE}, /* BOARD_LED_2 */ \
-    {GPIOD, GPIO_PIN_14, __HAL_RCC_GPIOD_CLK_ENABLE}, /* BOARD_LED_3 */ \
-    {GPIOD, GPIO_PIN_15, __HAL_RCC_GPIOD_CLK_ENABLE}  /* BOARD_LED_4 */ \
+    {GPIOD, GPIO_PIN_12}, /* BOARD_LED_1 */ \
+    {GPIOD, GPIO_PIN_13}, /* BOARD_LED_2 */ \
+    {GPIOD, GPIO_PIN_14}, /* BOARD_LED_3 */ \
+    {GPIOD, GPIO_PIN_15}  /* BOARD_LED_4 */ \
 }
 
 /* LED 极性：1=高电平点亮，0=低电平点亮 */
