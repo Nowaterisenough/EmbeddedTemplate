@@ -33,57 +33,66 @@ uint32_t board_millis(void)
 }
 
 #if BOARD_HAS_LED
+/* LED 硬件映射表 */
+typedef struct {
+    GPIO_TypeDef *port;
+    uint16_t      pin;
+    void        (*clk_enable)(void);
+} led_map_t;
+
+static const led_map_t led_map[] = BOARD_LED_MAP;
+static uint8_t led_state[BOARD_LED_MAX] = {0};
+
 void board_led_init(void)
 {
-    /* 已在 board_init 中完成，可留空 */
-    /*定义一个GPIO_InitTypeDef类型的结构体*/
-    GPIO_InitTypeDef GPIO_InitStruct;
+    GPIO_InitTypeDef gpio_init = {
+        .Mode  = GPIO_MODE_OUTPUT_PP,
+        .Pull  = GPIO_PULLUP,
+        .Speed = GPIO_SPEED_FREQ_HIGH
+    };
 
-    /*开启LED相关的GPIO外设时钟*/
-    BOARD_LED1_GPIO_CLK_ENABLE();
-    BOARD_LED2_GPIO_CLK_ENABLE();
-    BOARD_LED3_GPIO_CLK_ENABLE();
+    for (size_t i = 0; i < BOARD_LED_MAX; i++) {
+        if (led_map[i].port == NULL) continue;
 
-    /*选择要控制的GPIO引脚*/
-    GPIO_InitStruct.Pin = BOARD_LED1_PIN;
+        /* 使能时钟 */
+        if (led_map[i].clk_enable) {
+            led_map[i].clk_enable();
+        }
 
-    /*设置引脚的输出类型为推挽输出*/
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+        /* 初始化 GPIO */
+        gpio_init.Pin = led_map[i].pin;
+        HAL_GPIO_Init(led_map[i].port, &gpio_init);
 
-    /*设置引脚为上拉模式*/
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
-
-    /*设置引脚速率为高速 */
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-
-    /*调用库函数，使用上面配置的GPIO_InitStructure初始化GPIO*/
-    HAL_GPIO_Init(BOARD_LED1_GPIO_PORT, &GPIO_InitStruct);
-
-    /*选择要控制的GPIO引脚*/
-    GPIO_InitStruct.Pin = BOARD_LED2_PIN;
-    HAL_GPIO_Init(BOARD_LED2_GPIO_PORT, &GPIO_InitStruct);
-
-    /*选择要控制的GPIO引脚*/
-    GPIO_InitStruct.Pin = BOARD_LED3_PIN;
-    HAL_GPIO_Init(BOARD_LED3_GPIO_PORT, &GPIO_InitStruct);
-
-    board_led(BOARD_LED1_PIN, OFF); // 关闭LED1
-    board_led(BOARD_LED2_PIN, OFF); // 关闭LED2
-    board_led(BOARD_LED3_PIN, OFF); // 关闭LED3
+        /* 默认关闭所有 LED */
+        board_led_set((board_led_id_t)i, LED_OFF);
+    }
 }
 
-void board_led(uint16_t led, uint8_t state)
+void board_led_set(board_led_id_t led, led_state_t state)
 {
-    GPIO_TypeDef *led_port;
-
-    switch (led) {
-
-        case BOARD_LED1_PIN: led_port = BOARD_LED1_GPIO_PORT; break;
-        case BOARD_LED2_PIN: led_port = BOARD_LED2_GPIO_PORT; break;
-        case BOARD_LED3_PIN: led_port = BOARD_LED3_GPIO_PORT; break;
-        default: return; // 无效的 LED 引脚
+    if (led >= BOARD_LED_MAX || led_map[led].port == NULL) {
+        return;
     }
-    HAL_GPIO_WritePin(led_port, led, state ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    led_state[led] = state;
+
+    GPIO_PinState pin_state;
+    #if BOARD_LED_ACTIVE_HIGH
+        pin_state = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    #else
+        pin_state = state ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    #endif
+
+    HAL_GPIO_WritePin(led_map[led].port, led_map[led].pin, pin_state);
+}
+
+void board_led_toggle(board_led_id_t led)
+{
+    if (led >= BOARD_LED_MAX) {
+        return;
+    }
+
+    board_led_set(led, led_state[led] ? LED_OFF : LED_ON);
 }
 #endif
 

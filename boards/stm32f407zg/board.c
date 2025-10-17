@@ -54,53 +54,66 @@ uint32_t board_millis(void)
     return HAL_GetTick();
 }
 
+/* LED 硬件映射表 */
+typedef struct {
+    GPIO_TypeDef *port;
+    uint16_t      pin;
+    void        (*clk_enable)(void);
+} led_map_t;
+
+static const led_map_t led_map[] = BOARD_LED_MAP;
+static uint8_t led_state[BOARD_LED_MAX] = {0};
+
 void board_led_init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitTypeDef gpio_init = {
+        .Mode  = GPIO_MODE_OUTPUT_PP,
+        .Pull  = GPIO_NOPULL,
+        .Speed = GPIO_SPEED_FREQ_LOW
+    };
 
-    /* Enable GPIO clocks for LEDs */
-    LED1_GPIO_CLK_ENABLE();
-    LED2_GPIO_CLK_ENABLE();
-    LED3_GPIO_CLK_ENABLE();
-    LED4_GPIO_CLK_ENABLE();
+    for (size_t i = 0; i < BOARD_LED_MAX; i++) {
+        if (led_map[i].port == NULL) continue;
 
-    /* Configure GPIO pins for LEDs */
-    GPIO_InitStruct.Pin = LED1_PIN;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(LED1_GPIO_PORT, &GPIO_InitStruct);
+        /* 使能时钟 */
+        if (led_map[i].clk_enable) {
+            led_map[i].clk_enable();
+        }
 
-    GPIO_InitStruct.Pin = LED2_PIN;
-    HAL_GPIO_Init(LED2_GPIO_PORT, &GPIO_InitStruct);
+        /* 初始化 GPIO */
+        gpio_init.Pin = led_map[i].pin;
+        HAL_GPIO_Init(led_map[i].port, &gpio_init);
 
-    GPIO_InitStruct.Pin = LED3_PIN;
-    HAL_GPIO_Init(LED3_GPIO_PORT, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = LED4_PIN;
-    HAL_GPIO_Init(LED4_GPIO_PORT, &GPIO_InitStruct);
+        /* 默认关闭所有 LED */
+        board_led_set((board_led_id_t)i, LED_OFF);
+    }
 }
 
-void board_led(uint16_t led, uint8_t state)
+void board_led_set(board_led_id_t led, led_state_t state)
 {
-    GPIO_PinState pin_state = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
-    
-    switch(led) {
-        case BOARD_LED1_PIN:
-            HAL_GPIO_WritePin(LED1_GPIO_PORT, LED1_PIN, pin_state);
-            break;
-        case BOARD_LED2_PIN:
-            HAL_GPIO_WritePin(LED2_GPIO_PORT, LED2_PIN, pin_state);
-            break;
-        case BOARD_LED3_PIN:
-            HAL_GPIO_WritePin(LED3_GPIO_PORT, LED3_PIN, pin_state);
-            break;
-        case BOARD_LED4_PIN:
-            HAL_GPIO_WritePin(LED4_GPIO_PORT, LED4_PIN, pin_state);
-            break;
-        default:
-            break;
+    if (led >= BOARD_LED_MAX || led_map[led].port == NULL) {
+        return;
     }
+
+    led_state[led] = state;
+
+    GPIO_PinState pin_state;
+    #if BOARD_LED_ACTIVE_HIGH
+        pin_state = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    #else
+        pin_state = state ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    #endif
+
+    HAL_GPIO_WritePin(led_map[led].port, led_map[led].pin, pin_state);
+}
+
+void board_led_toggle(board_led_id_t led)
+{
+    if (led >= BOARD_LED_MAX) {
+        return;
+    }
+
+    board_led_set(led, led_state[led] ? LED_OFF : LED_ON);
 }
 
 void board_fatal_halt(void)
