@@ -59,6 +59,29 @@
       "cacheVariables": {
         "BOARD": "stm32f407zg"
       }
+    },
+    {
+      "name": "arm-gcc-ci",
+      "inherits": "base",
+      "hidden": true,
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
+      "description": "ARM GCC preset for CI/CD (uses system PATH)"
+    },
+    {
+      "name": "h743-gcc-ci",
+      "inherits": "arm-gcc-ci",
+      "displayName": "H743 ARM GCC (CI)",
+      "cacheVariables": {
+        "BOARD": "stm32h743zi"
+      }
+    },
+    {
+      "name": "f407-gcc-ci",
+      "inherits": "arm-gcc-ci",
+      "displayName": "F407 ARM GCC (CI)",
+      "cacheVariables": {
+        "BOARD": "stm32f407zg"
+      }
     }
   ]
 }
