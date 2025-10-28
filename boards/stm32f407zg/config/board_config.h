@@ -12,40 +12,23 @@
 extern "C" {
 #endif
 
-/* Board specific defines */
-#define BOARD_STM32F407ZG   1
-#define BOARD_HAS_LED       1
-
-/* LED state defines */
-#define ON                  1
-#define OFF                 0
-
-/* LED pin defines */
-#define BOARD_LED1_PIN      1
-#define BOARD_LED2_PIN      2
-#define BOARD_LED3_PIN      3
-#define BOARD_LED4_PIN      4
-
 /* STM32 Family includes */
 #include "stm32f4xx_hal.h"
-#include "main.h"
 
-/* Board specific GPIO definitions */
-#define LED1_PIN                    GPIO_PIN_12
-#define LED1_GPIO_PORT              GPIOD
-#define LED1_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOD_CLK_ENABLE()
+/* Board specific defines */
+#define BOARD_STM32F407ZG 1
+#define BOARD_HAS_LED     1
 
-#define LED2_PIN                    GPIO_PIN_13
-#define LED2_GPIO_PORT              GPIOD
-#define LED2_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOD_CLK_ENABLE()
+/* LED 硬件映射表：定义逻辑 LED 到物理引脚的映射 */
+#define BOARD_LED_MAP { \
+    {GPIOD, GPIO_PIN_12}, /* BOARD_LED_1 */ \
+    {GPIOD, GPIO_PIN_13}, /* BOARD_LED_2 */ \
+    {GPIOD, GPIO_PIN_14}, /* BOARD_LED_3 */ \
+    {GPIOD, GPIO_PIN_15}  /* BOARD_LED_4 */ \
+}
 
-#define LED3_PIN                    GPIO_PIN_14
-#define LED3_GPIO_PORT              GPIOD
-#define LED3_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOD_CLK_ENABLE()
-
-#define LED4_PIN                    GPIO_PIN_15
-#define LED4_GPIO_PORT              GPIOD
-#define LED4_GPIO_CLK_ENABLE()      __HAL_RCC_GPIOD_CLK_ENABLE()
+/* LED 极性：1=高电平点亮，0=低电平点亮 */
+#define BOARD_LED_ACTIVE_HIGH 1
 
 #ifdef __cplusplus
 }

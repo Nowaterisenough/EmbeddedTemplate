@@ -135,6 +135,211 @@ EmbeddedTemplate/
 └── tests/                 # 测试代码
 ```
 
+## 开发指南
+
+### Board API 使用
+
+项目提供统一的板级 API，所有开发板共享相同接口：
+
+#### 1. 初始化
+
+```c
+#include "board.h"
+
+int main(void) {
+    board_init();      // 初始化系统时钟、HAL等
+    board_led_init();  // 初始化LED（如果板子支持）
+
+    // 你的应用代码
+}
+```
+
+#### 2. LED 控制
+
+```c
+// LED 枚举：BOARD_LED_1, BOARD_LED_2, BOARD_LED_3, BOARD_LED_4
+// 状态枚举：LED_ON, LED_OFF
+
+// 设置 LED 状态
+board_led_set(BOARD_LED_1, LED_ON);   // 点亮 LED1
+board_led_set(BOARD_LED_2, LED_OFF);  // 熄灭 LED2
+
+// 翻转 LED 状态
+board_led_toggle(BOARD_LED_1);        // LED1 状态取反
+```
+
+#### 3. 延时与时间
+
+```c
+// 毫秒级延时
+board_delay_ms(1000);  // 延时 1 秒
+
+// 获取系统运行时间（毫秒）
+uint32_t uptime = board_millis();
+```
+
+#### 4. 错误处理
+
+```c
+// 断言检查（仅在 DEBUG 模式生效）
+BOARD_ASSERT(value != 0);
+
+// 致命错误处理
+board_error_handler(__FILE__, __LINE__, __func__);  // 记录错误并挂起
+board_fatal_halt();  // 直接挂起系统
+```
+
+### 如何添加新板子
+
+假设要添加 `STM32L476RG` 开发板：
+
+#### 1. 创建板子目录结构
+
+```
+boards/stm32l476rg/
+├── CMakeLists.txt          # 板级 CMake 配置
+├── board.c                 # 板级实现
+├── board_config.h          # 硬件配置
+├── config/
+│   ├── stm32l4xx_hal_conf.h
+│   ├── system_stm32l4xx.c
+│   └── stm32l4xx_it.c
+├── startup/
+│   └── startup_stm32l476xx.s
+└── linker/
+    └── stm32l476rg_flash.ld
+```
+
+#### 2. 定义 LED 映射（board_config.h）
+
+```c
+#ifndef BOARD_CONFIG_H
+#define BOARD_CONFIG_H
+
+#include "stm32l4xx.h"
+
+#define BOARD_HAS_LED 1
+
+/* LED 硬件映射表 */
+#define BOARD_LED_MAP { \
+    {GPIOA, GPIO_PIN_5, __HAL_RCC_GPIOA_CLK_ENABLE}, /* BOARD_LED_1 */ \
+    {NULL,  0,          NULL},                       /* 未使用 */ \
+    {NULL,  0,          NULL},                       /* 未使用 */ \
+    {NULL,  0,          NULL}                        /* 未使用 */ \
+}
+
+/* LED 极性 */
+#define BOARD_LED_ACTIVE_HIGH 1
+
+#endif
+```
+
+#### 3. 实现板级代码（board.c）
+
+参考 `boards/stm32h743zi/board.c`，实现：
+- `board_init()` - 初始化时钟和HAL
+- `board_led_init()` - 使用映射表初始化LED（已提供通用实现）
+- `board_led_set()` - 控制LED（已提供通用实现）
+- `board_led_toggle()` - 翻转LED（已提供通用实现）
+
+**关键代码片段：**
+
+```c
+/* LED 硬件映射表（通用实现） */
+typedef struct {
+    GPIO_TypeDef *port;
+    uint16_t      pin;
+    void        (*clk_enable)(void);
+} led_map_t;
+
+static const led_map_t led_map[] = BOARD_LED_MAP;
+static uint8_t led_state[BOARD_LED_MAX] = {0};
+
+void board_led_init(void) {
+    GPIO_InitTypeDef gpio_init = {
+        .Mode  = GPIO_MODE_OUTPUT_PP,
+        .Pull  = GPIO_NOPULL,
+        .Speed = GPIO_SPEED_FREQ_LOW
+    };
+
+    for (size_t i = 0; i < BOARD_LED_MAX; i++) {
+        if (led_map[i].port == NULL) continue;
+        if (led_map[i].clk_enable) led_map[i].clk_enable();
+        gpio_init.Pin = led_map[i].pin;
+        HAL_GPIO_Init(led_map[i].port, &gpio_init);
+        board_led_set((board_led_id_t)i, LED_OFF);
+    }
+}
+
+void board_led_set(board_led_id_t led, led_state_t state) {
+    if (led >= BOARD_LED_MAX || led_map[led].port == NULL) return;
+    led_state[led] = state;
+
+    GPIO_PinState pin_state;
+    #if BOARD_LED_ACTIVE_HIGH
+        pin_state = state ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    #else
+        pin_state = state ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    #endif
+
+    HAL_GPIO_WritePin(led_map[led].port, led_map[led].pin, pin_state);
+}
+
+void board_led_toggle(board_led_id_t led) {
+    if (led >= BOARD_LED_MAX) return;
+    board_led_set(led, led_state[led] ? LED_OFF : LED_ON);
+}
+```
+
+#### 4. 更新 CMakePresets.json
+
+添加新板子的构建配置：
+
+```json
+{
+  "name": "l476-gcc",
+  "displayName": "STM32L476RG - ARM GCC",
+  "cacheVariables": {
+    "BOARD": "stm32l476rg"
+  }
+}
+```
+
+#### 5. 构建测试
+
+```bash
+cmake --preset l476-gcc
+cmake --build build
+```
+
+### 数据驱动设计原则
+
+本项目采用**数据结构优先**的设计理念（参考 Linus Torvalds "好品味"原则）：
+
+**❌ 避免：硬编码的条件分支**
+```c
+// 不推荐：每个 LED 都有 switch-case
+switch (led) {
+    case LED1: HAL_GPIO_WritePin(GPIOH, GPIO_PIN_10, state); break;
+    case LED2: HAL_GPIO_WritePin(GPIOH, GPIO_PIN_11, state); break;
+    // ...
+}
+```
+
+**✅ 推荐：映射表驱动**
+```c
+// 硬件关系在编译时定义为数据
+static const led_map_t led_map[] = BOARD_LED_MAP;
+
+// 运行时直接索引，无分支
+HAL_GPIO_WritePin(led_map[led].port, led_map[led].pin, state);
+```
+
+**优势：**
+- 添加新板子只需修改一行宏定义
+- 所有板子的 `board.c` 实现完全一致
+- 零特殊情况，零条件分支
+
 ## 调试
 
 项目集成了SEGGER RTT，支持实时调试输出：

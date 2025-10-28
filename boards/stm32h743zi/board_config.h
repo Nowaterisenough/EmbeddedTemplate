@@ -3,21 +3,17 @@
 
 #include "stm32h7xx.h"
 
-#define BOARD_HAS_LED                1
+#define BOARD_HAS_LED 1
 
-#define BOARD_LED1_PIN               GPIO_PIN_10
-#define BOARD_LED1_GPIO_PORT         GPIOH
-#define BOARD_LED1_GPIO_CLK_ENABLE() __GPIOH_CLK_ENABLE()
+/* LED 硬件映射表：定义逻辑 LED 到物理引脚的映射 */
+#define BOARD_LED_MAP { \
+    {GPIOH, GPIO_PIN_10}, /* BOARD_LED_1 */ \
+    {GPIOH, GPIO_PIN_11}, /* BOARD_LED_2 */ \
+    {GPIOH, GPIO_PIN_12}, /* BOARD_LED_3 */ \
+    {NULL,  0}            /* BOARD_LED_4: 未使用 */ \
+}
 
-#define BOARD_LED2_PIN               GPIO_PIN_11
-#define BOARD_LED2_GPIO_PORT         GPIOH
-#define BOARD_LED2_GPIO_CLK_ENABLE() __GPIOH_CLK_ENABLE()
-
-#define BOARD_LED3_PIN               GPIO_PIN_12
-#define BOARD_LED3_GPIO_PORT         GPIOH
-#define BOARD_LED3_GPIO_CLK_ENABLE() __GPIOH_CLK_ENABLE()
-
-#define ON                           GPIO_PIN_RESET
-#define OFF                          GPIO_PIN_SET
+/* LED 极性：1=高电平点亮，0=低电平点亮 */
+#define BOARD_LED_ACTIVE_HIGH 0
 
 #endif
