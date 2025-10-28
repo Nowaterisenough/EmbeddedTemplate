@@ -1,4 +1,5 @@
 #include "main.h"
+
 #include "board.h"
 
 /*
@@ -11,14 +12,14 @@
  * - 全灭
  */
 static const uint8_t led_sequence[] = {
-    0b001,  /* Red (LED1) */
-    0b010,  /* Green (LED2) */
-    0b100,  /* Blue (LED3) */
-    0b011,  /* Yellow (LED1 + LED2) */
-    0b101,  /* Magenta (LED1 + LED3) */
-    0b110,  /* Cyan (LED2 + LED3) */
-    0b111,  /* White (LED1 + LED2 + LED3) */
-    0b000,  /* All OFF */
+    0b001, /* Red (LED1) */
+    0b010, /* Green (LED2) */
+    0b100, /* Blue (LED3) */
+    0b011, /* Yellow (LED1 + LED2) */
+    0b101, /* Magenta (LED1 + LED3) */
+    0b110, /* Cyan (LED2 + LED3) */
+    0b111, /* White (LED1 + LED2 + LED3) */
+    0b000, /* All OFF */
 };
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -29,8 +30,10 @@ int main(void)
     board_init();
     board_led_init();
 
-    while (1) {
-        for (size_t i = 0; i < ARRAY_SIZE(led_sequence); i++) {
+    while (1)
+    {
+        for (size_t i = 0; i < ARRAY_SIZE(led_sequence); i++)
+        {
             uint8_t pattern = led_sequence[i];
 
             /* 根据位掩码设置 LED 状态 */
