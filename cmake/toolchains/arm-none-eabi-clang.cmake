@@ -102,10 +102,10 @@ set(CMAKE_C_OUTPUT_EXTENSION .o)
 set(CMAKE_CXX_OUTPUT_EXTENSION .o)
 set(CMAKE_ASM_OUTPUT_EXTENSION .o)
 
-# 设置默认编译标志
-set(CMAKE_C_FLAGS_INIT "--target=arm-arm-none-eabi -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -O0 -g -gdwarf-4")
-set(CMAKE_CXX_FLAGS_INIT "--target=arm-arm-none-eabi -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -O0 -g -gdwarf-4")
-set(CMAKE_ASM_FLAGS_INIT "--target=arm-arm-none-eabi -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -masm=auto -g")
+# 设置默认编译标志（只包含通用选项，芯片特定选项由板级配置注入）
+set(CMAKE_C_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb -O0 -g -gdwarf-4")
+set(CMAKE_CXX_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb -O0 -g -gdwarf-4")
+set(CMAKE_ASM_FLAGS_INIT "--target=arm-arm-none-eabi -mthumb -masm=auto -g")
 
 # 设置标准库为空（嵌入式系统）
 set(CMAKE_C_STANDARD_LIBRARIES "")
