@@ -14,13 +14,19 @@
       "name": "arm-clang",
       "inherits": "base",
       "hidden": true,
-      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-clang.cmake"
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-clang.cmake",
+      "environment": {
+        "ARM_CLANG_PATH": "C:/Users/NoWat/Workspace/Toolchains/ArmCompiler6.22/bin"
+      }
     },
     {
       "name": "arm-gcc",
       "inherits": "base",
       "hidden": true,
-      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake"
+      "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
+      "environment": {
+        "ARM_GCC_PATH": "C:/Users/NoWat/Workspace/Toolchains/arm-gnu-toolchain-14.3.rel1-mingw-w64-x86_64-arm-none-eabi/bin"
+      }
     },
     {
       "name": "h743-clang",
