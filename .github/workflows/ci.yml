@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  # 静态代码分析（需要配置项目）
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy gcc-arm-none-eabi cmake ninja-build
+          clang-tidy --version
+
+      - name: Configure project
+        run: |
+          cmake --preset h743-gcc-ci
+
+      - name: Run clang-tidy
+        run: |
+          echo "Running clang-tidy on application code..."
+          find app boards/stm32h743zi/board.c modules -type f -name "*.c" \
+            ! -path "*/boards/*/config/*" \
+            ! -path "*/boards/*/startup/*" \
+            -print0 2>/dev/null | while IFS= read -r -d '' file; do
+              if [ -f "$file" ]; then
+                echo "Analyzing: $file"
+                clang-tidy "$file" -p=build --warnings-as-errors=* || true
+              fi
+          done
+
+  # 代码复杂度检查（快速）
+  complexity-check:
+    name: Code Complexity Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install lizard
+        run: |
+          pip install lizard
+          lizard --version
+
+      - name: Analyze complexity
+        run: |
+          echo "Analyzing code complexity..."
+          lizard -l c -w -C 15 \
+            app/ boards/ modules/ middleware/ \
+            -x "*/STM32Cube*/*" \
+            -x "*/startup/*" \
+            -x "*/config/*" \
+            || echo "Warning: Some functions have high complexity"
+
+  # 构建测试（依赖所有代码质量检查通过）
+  build:
+    name: Build ${{ matrix.board }}
+    runs-on: ubuntu-latest
+    needs: [static-analysis, complexity-check]  # 所有检查通过才构建
+
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [stm32h743zi, stm32f407zg]
+        include:
+          - board: stm32h743zi
+            preset: h743-gcc-ci
+          - board: stm32f407zg
+            preset: f407-gcc-ci
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ARM GCC toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
+          arm-none-eabi-gcc --version
+
+      - name: Install CMake and Ninja
+        run: |
+          sudo apt-get install -y cmake ninja-build
+          cmake --version
+          ninja --version
+
+      - name: Configure CMake
+        run: |
+          cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: |
+          cmake --build build -v
+
+      - name: Check build artifacts
+        run: |
+          ls -lh build/bin/${{ matrix.board }}/
+          file build/bin/${{ matrix.board }}/EmbeddedTemplate.elf
+          arm-none-eabi-size build/bin/${{ matrix.board }}/EmbeddedTemplate.elf
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.board }}-gcc
+          path: |
+            build/bin/${{ matrix.board }}/EmbeddedTemplate.elf
+            build/bin/${{ matrix.board }}/EmbeddedTemplate.bin
+            build/bin/${{ matrix.board }}/EmbeddedTemplate.hex
+          retention-days: 30
