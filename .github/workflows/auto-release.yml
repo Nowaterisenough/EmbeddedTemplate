@@ -1,0 +1,213 @@
+name: Auto Release on Main Push
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+      tag_name: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史，用于生成 changelog
+
+      - name: Generate version and tag
+        id: version
+        run: |
+          # 生成基于日期的版本号：v2025.10.29.1
+          DATE=$(date +'%Y.%m.%d')
+
+          # 查找今天是否已有 release
+          COUNT=1
+          while git rev-parse "v${DATE}.${COUNT}" >/dev/null 2>&1; do
+            COUNT=$((COUNT + 1))
+          done
+
+          TAG="v${DATE}.${COUNT}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "date=${DATE}" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+          echo "Generated tag: ${TAG}"
+
+      - name: Get last release tag
+        id: last_release
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous release found, using first commit"
+            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "last_tag=${LAST_TAG}" >> $GITHUB_OUTPUT
+          echo "Last release: ${LAST_TAG}"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LAST_TAG="${{ steps.last_release.outputs.last_tag }}"
+
+          # 生成 changelog
+          echo "## 📋 更新内容" > changelog.md
+          echo "" >> changelog.md
+
+          # 按类型分组提交
+          echo "### ✨ 新功能 (Features)" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- feat" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+
+          echo "### 🐛 Bug 修复 (Fixes)" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- fix" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+
+          echo "### 🔧 重构 (Refactoring)" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- refactor" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+
+          echo "### 📝 文档 (Documentation)" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- docs" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+
+          echo "### 🎨 代码风格 (Style)" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- style" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+
+          echo "### 🔨 构建系统 (Build)" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- build\|^- ci" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+
+          echo "### 🧹 杂项 (Chores)" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- chore\|^- perf\|^- test" >> changelog.md || echo "无" >> changelog.md
+          echo "" >> changelog.md
+
+          echo "### 📊 完整提交历史" >> changelog.md
+          echo "" >> changelog.md
+          echo "\`\`\`" >> changelog.md
+          git log ${LAST_TAG}..HEAD --pretty=format:"%h - %s (%an, %ar)" --no-merges >> changelog.md
+          echo "" >> changelog.md
+          echo "\`\`\`" >> changelog.md
+
+          cat changelog.md
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body_path: changelog.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-upload:
+    name: Build and Upload ${{ matrix.mcu }}
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    strategy:
+      matrix:
+        board: [stm32h743zi, stm32f407zg]
+        include:
+          - board: stm32h743zi
+            preset: h743-gcc-ci
+            mcu: STM32H743ZI
+          - board: stm32f407zg
+            preset: f407-gcc-ci
+            mcu: STM32F407ZG
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ARM GCC toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
+          arm-none-eabi-gcc --version
+
+      - name: Install CMake and Ninja
+        run: |
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Configure CMake (Release build)
+        run: |
+          cmake --preset ${{ matrix.preset }} -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cmake --build build -v
+
+      - name: Display build info
+        run: |
+          echo "=== Build Information ==="
+          echo "Board: ${{ matrix.mcu }}"
+          echo "Version: ${{ needs.create-release.outputs.tag_name }}"
+          echo ""
+          echo "=== Binary Size ==="
+          arm-none-eabi-size build/bin/${{ matrix.board }}/EmbeddedTemplate.elf
+
+      - name: Create release package
+        run: |
+          mkdir -p release-package
+          TAG="${{ needs.create-release.outputs.tag_name }}"
+
+          # 复制固件文件
+          cp build/bin/${{ matrix.board }}/EmbeddedTemplate.elf \
+             release-package/EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.elf
+          cp build/bin/${{ matrix.board }}/EmbeddedTemplate.bin \
+             release-package/EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.bin
+          cp build/bin/${{ matrix.board }}/EmbeddedTemplate.hex \
+             release-package/EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.hex
+
+          # 创建版本信息文件
+          cat > release-package/VERSION.txt <<EOF
+          EmbeddedTemplate Firmware
+          =========================
+
+          Board: ${{ matrix.mcu }}
+          Version: ${TAG}
+          Build Date: $(date +'%Y-%m-%d %H:%M:%S UTC')
+          Git Commit: $(git rev-parse HEAD)
+          Git Short: $(git rev-parse --short HEAD)
+          Toolchain: ARM GCC $(arm-none-eabi-gcc --version | head -n1)
+
+          Files:
+          - EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.elf (ELF executable with debug symbols)
+          - EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.bin (Raw binary for direct flash)
+          - EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.hex (Intel HEX format)
+
+          Binary Size:
+          $(arm-none-eabi-size build/bin/${{ matrix.board }}/EmbeddedTemplate.elf)
+          EOF
+
+          # 打包
+          cd release-package
+          zip -r ../EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip .
+          cd ..
+
+          # 生成 SHA256 校验和
+          sha256sum EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip \
+            > EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip.sha256
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          files: |
+            EmbeddedTemplate-${{ matrix.mcu }}-${{ needs.create-release.outputs.tag_name }}.zip
+            EmbeddedTemplate-${{ matrix.mcu }}-${{ needs.create-release.outputs.tag_name }}.zip.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
