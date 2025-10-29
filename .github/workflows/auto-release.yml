@@ -24,21 +24,42 @@ jobs:
       - name: Generate version and tag
         id: version
         run: |
-          # 生成基于日期的版本号：v2025.10.29.1
-          DATE=$(date +'%Y.%m.%d')
+          # 主版本号和次版本号（手动管理）
+          MAJOR="01"
+          MINOR="00"
 
-          # 查找今天是否已有 release
-          COUNT=1
-          while git rev-parse "v${DATE}.${COUNT}" >/dev/null 2>&1; do
-            COUNT=$((COUNT + 1))
-          done
+          # 构建日期（固定8位：YYYYMMDD）
+          BUILD_DATE=$(date +'%Y%m%d')
 
-          TAG="v${DATE}.${COUNT}"
+          # 获取上一个 tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            # 第一次发布，统计所有 commit
+            COMMIT_COUNT=$(git rev-list --count HEAD)
+          else
+            # 统计自上次发布以来的 commit 数量
+            COMMIT_COUNT=$(git rev-list --count ${LAST_TAG}..HEAD)
+          fi
+
+          # 修订号（固定2位，00-99）
+          PATCH=$(printf "%02d" $COMMIT_COUNT)
+
+          # 如果超过99个commit，使用99
+          if [ $COMMIT_COUNT -gt 99 ]; then
+            PATCH="99"
+          fi
+
+          # 生成版本号：01.00.XX.20251029
+          TAG="${MAJOR}.${MINOR}.${PATCH}.${BUILD_DATE}"
+
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "date=${DATE}" >> $GITHUB_OUTPUT
+          echo "date=${BUILD_DATE}" >> $GITHUB_OUTPUT
           echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "commit_count=${COMMIT_COUNT}" >> $GITHUB_OUTPUT
 
-          echo "Generated tag: ${TAG}"
+          echo "Generated version: ${TAG}"
+          echo "Commits since last release: ${COMMIT_COUNT}"
 
       - name: Get last release tag
         id: last_release
@@ -55,9 +76,22 @@ jobs:
         id: changelog
         run: |
           LAST_TAG="${{ steps.last_release.outputs.last_tag }}"
+          VERSION="${{ steps.version.outputs.tag }}"
+          COMMIT_COUNT="${{ steps.version.outputs.commit_count }}"
 
           # 生成 changelog
-          echo "## 📋 更新内容" > changelog.md
+          echo "## 📦 版本信息" > changelog.md
+          echo "" >> changelog.md
+          echo "- **版本号**: ${VERSION}" >> changelog.md
+          echo "- **构建日期**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> changelog.md
+          echo "- **提交数量**: ${COMMIT_COUNT} 个新提交" >> changelog.md
+          if [ -n "$LAST_TAG" ]; then
+            echo "- **上一版本**: ${LAST_TAG}" >> changelog.md
+          fi
+          echo "" >> changelog.md
+          echo "---" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 📋 更新内容" >> changelog.md
           echo "" >> changelog.md
 
           # 按类型分组提交
