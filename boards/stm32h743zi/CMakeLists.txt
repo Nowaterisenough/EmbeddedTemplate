@@ -28,6 +28,7 @@ set(BOARD_SOURCES
   ${BOARD_DIR}/config/stm32h7xx_it.c
   ${BOARD_DIR}/config/system_stm32h7xx.c
   ${BOARD_DIR}/board.c
+  ${BOARD_DIR}/uart_port.c  # UART 硬件实现
 )
 
 # 头文件路径（优先板级 config）
