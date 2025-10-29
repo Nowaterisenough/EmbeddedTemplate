@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write  # 允许创建 release、tag 和上传文件
+
 jobs:
   create-release:
     name: Create GitHub Release
