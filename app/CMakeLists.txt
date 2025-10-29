@@ -3,7 +3,7 @@
 add_executable(${PROJECT_NAME}
   ${CMAKE_CURRENT_SOURCE_DIR}/main.c  # 完整版(带UART)
   ${CMAKE_CURRENT_SOURCE_DIR}/syscalls.c
-  ${CMAKE_SOURCE_DIR}/modules/uart/src/uart_driver.c  # UART驱动源文件
+  # UART 实现已移到 boards/stm32h743zi/uart_port.c
 )
 
 # 产物根目录：放到构建目录(build)下的 bin/BOARD/
@@ -20,10 +20,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 # app 头目录（板的 config/宏由 board:: 传播，无需手动加）
+# UART 头文件也通过 board:: 传播
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/modules/uart/include  # UART驱动头文件
 )
 
 # 链接板级与模块（板级会间接链接 stm32h7_hal 与 cubeh7）
