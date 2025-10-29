@@ -1,7 +1,9 @@
 # app/CMakeLists.txt
 
 add_executable(${PROJECT_NAME}
-  ${CMAKE_CURRENT_SOURCE_DIR}/main.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/main.c  # 完整版(带UART)
+  ${CMAKE_CURRENT_SOURCE_DIR}/syscalls.c
+  ${CMAKE_SOURCE_DIR}/modules/uart/src/uart_driver.c  # UART驱动源文件
 )
 
 # 产物根目录：放到构建目录(build)下的 bin/BOARD/
@@ -21,12 +23,15 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/modules/uart/include  # UART驱动头文件
 )
 
-# 链接板级与模块（板级会间接链接 stm32h7_hal 与 cubeh7）  
+# 链接板级与模块（板级会间接链接 stm32h7_hal 与 cubeh7）
 target_link_libraries(${PROJECT_NAME} PRIVATE
   board::${BOARD}
   RTT
+  scheduler
+  hylink
 )
 
 # 通用的输入/输出文件（用生成表达式获取 .elf 的最终路径）

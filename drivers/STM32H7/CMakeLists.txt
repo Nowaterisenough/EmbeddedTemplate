@@ -127,6 +127,15 @@ target_link_libraries(stm32h7_hal PUBLIC cubeh7)
 # 默认宏（具体芯片在板级注入）
 target_compile_definitions(stm32h7_hal PUBLIC USE_HAL_DRIVER)
 
+# 关键：为HAL库添加与应用代码一致的编译选项，避免relocation错误
+# 这些选项必须与最终链接的应用代码保持一致
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(stm32h7_hal PRIVATE
+    -ffunction-sections
+    -fdata-sections
+  )
+endif()
+
 # 提供"HAL 配置头路径"的接口容器，供板级注入 config 目录
 add_library(hal_conf INTERFACE)
 # 提供"编译宏"的接口容器，供板级注入芯片宏
