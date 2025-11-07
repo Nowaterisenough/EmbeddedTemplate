@@ -25,86 +25,144 @@ def extract_from_bin(bin_path):
     with open(bin_path, 'rb') as f:
         data = f.read()
 
-    # 搜索魔法数字
+    # 搜索所有魔法数字匹配
     magic_bytes = struct.pack('<I', FW_VERSION_MAGIC)
-    offset = data.find(magic_bytes)
+    matches = []
+    pos = 0
+    while True:
+        pos = data.find(magic_bytes, pos)
+        if pos < 0:
+            break
+        matches.append(pos)
+        pos += 1
 
-    if offset < 0:
+    if not matches:
         print(f"[ERROR] Version info not found (magic: 0x{FW_VERSION_MAGIC:08X})")
         return None
 
-    print(f"[OK] Found version info at offset 0x{offset:08X}")
+    # 如果有多个匹配，尝试验证每一个
+    valid_infos = []
+    for offset in matches:
+        try:
+            info = parse_version_from_offset(data, offset)
+            if info and is_version_info_valid(info):
+                valid_infos.append((offset, info))
+        except:
+            continue
 
-    # 解析结构（简化版本）
-    try:
-        # uint32_t magic
-        magic, = struct.unpack_from('<I', data, offset)
-        offset += 4
-
-        # uint8_t major, minor; uint16_t patch
-        major, minor, patch = struct.unpack_from('<BBH', data, offset)
-        offset += 4
-
-        # uint32_t build_number
-        build_number, = struct.unpack_from('<I', data, offset)
-        offset += 4
-
-        # char git_commit[41]
-        git_commit = data[offset:offset+41].decode('ascii', errors='ignore').rstrip('\x00')
-        offset += 41
-
-        # char git_branch[32]
-        git_branch = data[offset:offset+32].decode('ascii', errors='ignore').rstrip('\x00')
-        offset += 32
-
-        # uint8_t is_dirty; uint8_t reserved1[3]
-        is_dirty, = struct.unpack_from('<B', data, offset)
-        offset += 4
-
-        # char build_date[12]
-        build_date = data[offset:offset+12].decode('ascii', errors='ignore').rstrip('\x00')
-        offset += 12
-
-        # char build_time[9]
-        build_time = data[offset:offset+9].decode('ascii', errors='ignore').rstrip('\x00')
-        offset += 9
-
-        # uint32_t build_timestamp
-        build_timestamp, = struct.unpack_from('<I', data, offset)
-        offset += 4
-
-        # char compiler[32]
-        compiler = data[offset:offset+32].decode('ascii', errors='ignore').rstrip('\x00')
-        offset += 32
-
-        # char board_name[32]
-        board_name = data[offset:offset+32].decode('ascii', errors='ignore').rstrip('\x00')
-        offset += 32
-
-        # uint32_t crc32
-        crc32, = struct.unpack_from('<I', data, offset)
-
-        return {
-            'magic': magic,
-            'version': f"v{major}.{minor}.{patch}",
-            'major': major,
-            'minor': minor,
-            'patch': patch,
-            'build_number': build_number,
-            'git_commit': git_commit,
-            'git_branch': git_branch,
-            'is_dirty': bool(is_dirty),
-            'build_date': build_date,
-            'build_time': build_time,
-            'build_timestamp': build_timestamp,
-            'compiler': compiler,
-            'board_name': board_name,
-            'crc32': crc32,
-        }
-
-    except Exception as e:
-        print(f"[ERROR] Failed to parse version info: {e}")
+    if not valid_infos:
+        print(f"[ERROR] Found {len(matches)} magic number(s), but none contain valid version data")
         return None
+
+    if len(valid_infos) > 1:
+        print(f"[WARNING] Found {len(valid_infos)} valid version info locations, using first one")
+
+    offset, info = valid_infos[0]
+    print(f"[OK] Found version info at offset 0x{offset:08X}")
+    return info
+
+
+def parse_version_from_offset(data, offset):
+    """从指定偏移解析版本信息"""
+    # uint32_t magic
+    magic, = struct.unpack_from('<I', data, offset)
+    offset += 4
+
+    # uint8_t major, minor; uint16_t patch
+    major, minor, patch = struct.unpack_from('<BBH', data, offset)
+    offset += 4
+
+    # uint32_t build_number
+    build_number, = struct.unpack_from('<I', data, offset)
+    offset += 4
+
+    # char git_commit[41]
+    git_commit = data[offset:offset+41].decode('ascii', errors='ignore').rstrip('\x00')
+    offset += 41
+
+    # char git_branch[32]
+    git_branch = data[offset:offset+32].decode('ascii', errors='ignore').rstrip('\x00')
+    offset += 32
+
+    # uint8_t is_dirty; uint8_t reserved1[3]
+    is_dirty, = struct.unpack_from('<B', data, offset)
+    offset += 4
+
+    # char build_date[12]
+    build_date = data[offset:offset+12].decode('ascii', errors='ignore').rstrip('\x00')
+    offset += 12
+
+    # char build_time[9]
+    build_time = data[offset:offset+9].decode('ascii', errors='ignore').rstrip('\x00')
+    offset += 9
+
+    # uint32_t build_timestamp
+    build_timestamp, = struct.unpack_from('<I', data, offset)
+    offset += 4
+
+    # char compiler[32]
+    compiler = data[offset:offset+32].decode('ascii', errors='ignore').rstrip('\x00')
+    offset += 32
+
+    # char board_name[32]
+    board_name = data[offset:offset+32].decode('ascii', errors='ignore').rstrip('\x00')
+    offset += 32
+
+    # uint32_t crc32
+    crc32, = struct.unpack_from('<I', data, offset)
+
+    return {
+        'magic': magic,
+        'version': f"v{major}.{minor}.{patch}",
+        'major': major,
+        'minor': minor,
+        'patch': patch,
+        'build_number': build_number,
+        'git_commit': git_commit,
+        'git_branch': git_branch,
+        'is_dirty': bool(is_dirty),
+        'build_date': build_date,
+        'build_time': build_time,
+        'build_timestamp': build_timestamp,
+        'compiler': compiler,
+        'board_name': board_name,
+        'crc32': crc32,
+    }
+
+
+def is_version_info_valid(info):
+    """验证版本信息的合理性"""
+    # 检查版本号范围（通常不会超过 255）
+    if info['major'] > 255 or info['minor'] > 255 or info['patch'] > 65535:
+        return False
+
+    # 检查字符串字段是否包含可打印字符（至少有一些合理内容）
+    # board_name 和 git_branch 至少要有一些字母数字字符
+    if not any(c.isalnum() for c in info.get('board_name', '')):
+        return False
+
+    # git_commit 应该是十六进制字符串（至少前几个字符）
+    git_commit = info.get('git_commit', '')
+    if len(git_commit) > 0:
+        # 检查前7个字符是否都是十六进制
+        short_commit = git_commit[:7]
+        if not all(c in '0123456789abcdef' for c in short_commit.lower()):
+            return False
+
+    # build_date 应该符合 YYYY-MM-DD 格式
+    build_date = info.get('build_date', '')
+    if len(build_date) == 10:
+        parts = build_date.split('-')
+        if len(parts) != 3:
+            return False
+        try:
+            year = int(parts[0])
+            if year < 2020 or year > 2100:  # 合理的年份范围
+                return False
+        except:
+            return False
+
+    return True
 
 def extract_from_elf(elf_path):
     """从 ELF 文件中提取版本信息（通过 .version section）"""
