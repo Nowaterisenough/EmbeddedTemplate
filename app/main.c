@@ -8,6 +8,7 @@
 #include "scheduler.h"
 #include "uart_driver.h"
 #include "hylink_parser.h"
+#include "version.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -202,6 +203,9 @@ int main(void)
     /* 1. 初始化硬件 */
     board_init();
     board_led_init();
+
+    /* 打印固件版本信息 */
+    version_print();
 
     /* 2. 初始化HYlink解析器 */
     hylink_parser_init(on_hylink_packet_received);

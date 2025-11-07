@@ -1,9 +1,12 @@
 # app/CMakeLists.txt
 
+# 获取 Git 版本信息
+include(${CMAKE_SOURCE_DIR}/cmake/GetGitVersion.cmake)
+
 add_executable(${PROJECT_NAME}
-  ${CMAKE_CURRENT_SOURCE_DIR}/main.c  # 完整版(带UART)
+  ${CMAKE_CURRENT_SOURCE_DIR}/main.c
   ${CMAKE_CURRENT_SOURCE_DIR}/syscalls.c
-  # UART 实现已移到 boards/stm32h743zi/uart_port.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.c
 )
 
 # 产物根目录：放到构建目录(build)下的 bin/BOARD/
@@ -24,6 +27,21 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# 注入版本信息编译定义
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+  FW_VERSION_MAJOR=${VERSION_MAJOR}
+  FW_VERSION_MINOR=${VERSION_MINOR}
+  FW_VERSION_PATCH=${VERSION_PATCH}
+  FW_BUILD_NUMBER=${BUILD_NUMBER}
+  FW_GIT_COMMIT="${GIT_COMMIT_HASH}"
+  FW_GIT_BRANCH="${GIT_BRANCH}"
+  FW_GIT_DIRTY=${GIT_DIRTY}
+  FW_BUILD_DATE="${BUILD_DATE}"
+  FW_BUILD_TIME="${BUILD_TIME}"
+  FW_BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
+  FW_BOARD_NAME="${BOARD}"
 )
 
 # 链接板级与模块（板级会间接链接 stm32h7_hal 与 cubeh7）
