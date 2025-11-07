@@ -83,14 +83,14 @@ const firmware_version_t firmware_version __attribute__((section(".version"), us
     .minor            = FW_VERSION_MINOR,
     .patch            = FW_VERSION_PATCH,
     .build_number     = FW_BUILD_NUMBER,
-    .git_commit       = TOSTRING(FW_GIT_COMMIT),
-    .git_branch       = TOSTRING(FW_GIT_BRANCH),
+    .git_commit       = FW_GIT_COMMIT,      /* 字符串字段直接使用，CMake 已加引号 */
+    .git_branch       = FW_GIT_BRANCH,      /* 字符串字段直接使用 */
     .is_dirty         = FW_GIT_DIRTY,
-    .build_date       = TOSTRING(FW_BUILD_DATE),
-    .build_time       = TOSTRING(FW_BUILD_TIME),
+    .build_date       = FW_BUILD_DATE,      /* 字符串字段直接使用 */
+    .build_time       = FW_BUILD_TIME,      /* 字符串字段直接使用 */
     .build_timestamp  = FW_BUILD_TIMESTAMP,
     .compiler         = COMPILER_STRING,
-    .board_name       = TOSTRING(FW_BOARD_NAME),
+    .board_name       = FW_BOARD_NAME,      /* 字符串字段直接使用 */
     .crc32            = 0,  /* TODO: 实现 CRC32 计算 */
 };
 
