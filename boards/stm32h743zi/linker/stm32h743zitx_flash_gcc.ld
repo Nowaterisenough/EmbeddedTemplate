@@ -88,6 +88,17 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+  /* Firmware version section at fixed location (for easy extraction) */
+  .version :
+  {
+    . = ALIGN(4);
+    PROVIDE(_version_start = .);
+    KEEP(*(.version))
+    KEEP(*(.version*))
+    . = ALIGN(4);
+    PROVIDE(_version_end = .);
+  } >FLASH
+
   .ARM.extab   : { 
     . = ALIGN(4);
     *(.ARM.extab* .gnu.linkonce.armextab.*)
@@ -163,6 +174,17 @@ SECTIONS
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
   } >RAM
+
+  /* Task stacks section in DTCM RAM (fast access for context switching) */
+  .task_stacks (NOLOAD) :
+  {
+    . = ALIGN(8);      /* 8-byte alignment for ARM stack */
+    _task_stacks_start = .;
+    *(.task_stacks)
+    *(.task_stacks*)
+    . = ALIGN(8);
+    _task_stacks_end = .;
+  } >DTCMRAM
 
   /* User_heap_stack section, used to check that there is enough "RAM" Ram type memory left */
   ._user_heap_stack :

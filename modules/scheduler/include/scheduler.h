@@ -30,6 +30,7 @@ extern "C" {
 #define SCHED_TICK_RATE_HZ          1000   /* 系统滴答频率 (1ms) */
 #define SCHED_TIME_SLICE_TICKS      10     /* 时间片长度 (10ms) */
 #define SCHED_MIN_STACK_SIZE        256    /* 最小栈大小 (字节) */
+#define SCHED_DEFAULT_STACK_SIZE    1024   /* 默认栈大小 (字节) */
 
 /* ========================================================================
  * 类型定义

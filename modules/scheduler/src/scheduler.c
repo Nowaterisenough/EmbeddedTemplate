@@ -5,7 +5,6 @@
 
 #include "scheduler.h"
 #include <string.h>
-#include <stdlib.h>
 
 /* CMSIS 内联函数 */
 #include "cmsis_compiler.h"
@@ -13,6 +12,13 @@
 /* ========================================================================
  * 内部数据结构
  * ======================================================================== */
+
+/* 任务栈池：静态分配在 DTCM RAM 的专用区域 */
+static uint8_t task_stack_pool[SCHED_MAX_TASKS][SCHED_DEFAULT_STACK_SIZE]
+    __attribute__((section(".task_stacks"), aligned(8)));
+
+/* 栈分配位图 */
+static uint16_t stack_allocated_bitmap = 0;
 
 /* 就绪队列：每个优先级一个链表 */
 static tcb_t *ready_queue[SCHED_MAX_PRIORITIES] = {NULL};
@@ -39,6 +45,32 @@ static uint8_t ready_priority_bitmap = 0;
 /* ========================================================================
  * 内部辅助函数
  * ======================================================================== */
+
+/**
+ * 从栈池分配栈空间
+ * @return 栈索引，-1 表示失败
+ */
+static int allocate_stack_from_pool(void)
+{
+    for (int i = 0; i < SCHED_MAX_TASKS; i++) {
+        if ((stack_allocated_bitmap & (1 << i)) == 0) {
+            stack_allocated_bitmap |= (1 << i);
+            return i;
+        }
+    }
+    return -1;  /* 栈池已满 */
+}
+
+/**
+ * 释放栈回池
+ * @param stack_index 栈索引
+ */
+static void free_stack_to_pool(int stack_index)
+{
+    if (stack_index >= 0 && stack_index < SCHED_MAX_TASKS) {
+        stack_allocated_bitmap &= ~(1 << stack_index);
+    }
+}
 
 /**
  * 将任务添加到就绪队列
@@ -163,6 +195,7 @@ void sched_init(void)
     critical_nesting = 0;
     scheduler_running = false;
     ready_priority_bitmap = 0;
+    stack_allocated_bitmap = 0;  /* 清空栈分配位图 */
 }
 
 task_handle_t sched_task_create(
@@ -175,21 +208,24 @@ task_handle_t sched_task_create(
 {
     if (task_count >= SCHED_MAX_TASKS) return NULL;
     if (priority >= SCHED_MAX_PRIORITIES) return NULL;
-    if (stack_size < SCHED_MIN_STACK_SIZE) stack_size = SCHED_MIN_STACK_SIZE;
+
+    /* 警告：自定义栈大小被忽略，使用预分配的固定大小栈 */
+    (void)stack_size;
+
+    /* 从栈池分配栈空间 */
+    int stack_index = allocate_stack_from_pool();
+    if (stack_index < 0) {
+        return NULL;  /* 栈池已满 */
+    }
 
     /* 从任务池分配 TCB */
     tcb_t *task = &task_pool[task_count++];
 
-    /* 分配栈空间 (对齐到8字节) */
-    stack_size = (stack_size + 7) & ~7;
-    task->stack_base = (sched_stack_t*)malloc(stack_size);
-    if (!task->stack_base) {
-        task_count--;
-        return NULL;
-    }
+    /* 使用预分配的栈 */
+    task->stack_base = (sched_stack_t*)task_stack_pool[stack_index];
+    task->stack_size = SCHED_DEFAULT_STACK_SIZE;
 
     /* 初始化 TCB */
-    task->stack_size = stack_size;
     task->task_func = task_func;
     task->param = param;
     task->priority = priority;
@@ -200,7 +236,7 @@ task_handle_t sched_task_create(
     task->next = NULL;
 
     /* 初始化任务栈 (调用移植层) */
-    sched_stack_t *stack_top = task->stack_base + (stack_size / sizeof(sched_stack_t)) - 1;
+    sched_stack_t *stack_top = task->stack_base + (SCHED_DEFAULT_STACK_SIZE / sizeof(sched_stack_t)) - 1;
     task->stack_ptr = port_init_stack(stack_top, task_func, param);
 
     /* 添加到就绪队列 */
@@ -218,9 +254,14 @@ void sched_task_delete(task_handle_t task)
     /* 从就绪队列移除 */
     remove_task_from_ready_queue(task);
 
-    /* 释放栈 */
+    /* 释放栈回池 */
     if (task->stack_base) {
-        free(task->stack_base);
+        /* 计算栈索引 */
+        uintptr_t stack_offset = (uintptr_t)task->stack_base - (uintptr_t)task_stack_pool;
+        int stack_index = stack_offset / SCHED_DEFAULT_STACK_SIZE;
+
+        /* 释放栈 */
+        free_stack_to_pool(stack_index);
         task->stack_base = NULL;
     }
 
