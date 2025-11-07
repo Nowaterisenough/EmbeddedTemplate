@@ -14,8 +14,6 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_id: ${{ steps.create_release.outputs.id }}
       tag_name: ${{ steps.version.outputs.tag }}
 
     steps:
@@ -64,86 +62,22 @@ jobs:
           echo "Generated version: ${TAG}"
           echo "Commits since last release: ${COMMIT_COUNT}"
 
-      - name: Get last release tag
-        id: last_release
+      - name: Create and push tag
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$LAST_TAG" ]; then
-            echo "No previous release found, using first commit"
-            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
-          echo "last_tag=${LAST_TAG}" >> $GITHUB_OUTPUT
-          echo "Last release: ${LAST_TAG}"
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          LAST_TAG="${{ steps.last_release.outputs.last_tag }}"
           VERSION="${{ steps.version.outputs.tag }}"
-          COMMIT_COUNT="${{ steps.version.outputs.commit_count }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${VERSION}" -m "Release ${VERSION}"
+          git push origin "${VERSION}"
 
-          # 生成 changelog
-          echo "## 📦 版本信息" > changelog.md
-          echo "" >> changelog.md
-          echo "- **版本号**: ${VERSION}" >> changelog.md
-          echo "- **构建日期**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> changelog.md
-          echo "- **提交数量**: ${COMMIT_COUNT} 个新提交" >> changelog.md
-          if [ -n "$LAST_TAG" ]; then
-            echo "- **上一版本**: ${LAST_TAG}" >> changelog.md
-          fi
-          echo "" >> changelog.md
-          echo "---" >> changelog.md
-          echo "" >> changelog.md
-          echo "## 📋 更新内容" >> changelog.md
-          echo "" >> changelog.md
-
-          # 按类型分组提交
-          echo "### ✨ 新功能 (Features)" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- feat" >> changelog.md || echo "无" >> changelog.md
-          echo "" >> changelog.md
-
-          echo "### 🐛 Bug 修复 (Fixes)" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- fix" >> changelog.md || echo "无" >> changelog.md
-          echo "" >> changelog.md
-
-          echo "### 🔧 重构 (Refactoring)" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- refactor" >> changelog.md || echo "无" >> changelog.md
-          echo "" >> changelog.md
-
-          echo "### 📝 文档 (Documentation)" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- docs" >> changelog.md || echo "无" >> changelog.md
-          echo "" >> changelog.md
-
-          echo "### 🎨 代码风格 (Style)" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- style" >> changelog.md || echo "无" >> changelog.md
-          echo "" >> changelog.md
-
-          echo "### 🔨 构建系统 (Build)" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- build\|^- ci" >> changelog.md || echo "无" >> changelog.md
-          echo "" >> changelog.md
-
-          echo "### 🧹 杂项 (Chores)" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges | grep "^- chore\|^- perf\|^- test" >> changelog.md || echo "无" >> changelog.md
-          echo "" >> changelog.md
-
-          echo "### 📊 完整提交历史" >> changelog.md
-          echo "" >> changelog.md
-          echo "\`\`\`" >> changelog.md
-          git log ${LAST_TAG}..HEAD --pretty=format:"%h - %s (%an, %ar)" --no-merges >> changelog.md
-          echo "" >> changelog.md
-          echo "\`\`\`" >> changelog.md
-
-          cat changelog.md
-
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: Release ${{ steps.version.outputs.tag }}
-          body_path: changelog.md
-          draft: false
-          prerelease: false
+          node-version: '20'
+
+      - name: Generate changelog and create release
+        id: create_release
+        run: npx changelogithub --name "Release ${{ steps.version.outputs.tag }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -151,6 +85,8 @@ jobs:
     name: Build and Upload ${{ matrix.mcu }}
     runs-on: ubuntu-latest
     needs: create-release
+    permissions:
+      contents: write  # 允许上传文件到 release
 
     strategy:
       matrix:
@@ -240,11 +176,11 @@ jobs:
             > EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip.sha256
 
       - name: Upload to Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ needs.create-release.outputs.tag_name }}
-          files: |
-            EmbeddedTemplate-${{ matrix.mcu }}-${{ needs.create-release.outputs.tag_name }}.zip
-            EmbeddedTemplate-${{ matrix.mcu }}-${{ needs.create-release.outputs.tag_name }}.zip.sha256
+        run: |
+          TAG="${{ needs.create-release.outputs.tag_name }}"
+          gh release upload "${TAG}" \
+            EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip \
+            EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip.sha256 \
+            --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

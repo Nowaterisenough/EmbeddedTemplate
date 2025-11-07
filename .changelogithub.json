@@ -1,0 +1,20 @@
+{
+  "types": {
+    "feat": { "title": "新功能", "emoji": "" },
+    "fix": { "title": "Bug 修复", "emoji": "" },
+    "refactor": { "title": "重构", "emoji": "" },
+    "docs": { "title": "文档", "emoji": "" },
+    "style": { "title": "代码风格", "emoji": "" },
+    "build": { "title": "构建系统", "emoji": "" },
+    "ci": { "title": "持续集成", "emoji": "" },
+    "chore": { "title": "杂项", "emoji": "" },
+    "perf": { "title": "性能优化", "emoji": "" },
+    "test": { "title": "测试", "emoji": "" }
+  },
+  "titles": {
+    "breakingChanges": "破坏性变更"
+  },
+  "contributors": false,
+  "capitalize": false,
+  "group": true
+}
