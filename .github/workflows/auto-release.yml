@@ -77,7 +77,7 @@ jobs:
 
       - name: Generate changelog and create release
         id: create_release
-        run: npx changelogithub --name "Release ${{ steps.version.outputs.tag }}" --config .github/changelogithub.json
+        run: npx changelogithub --name "Release ${{ steps.version.outputs.tag }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
