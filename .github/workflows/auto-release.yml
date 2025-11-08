@@ -17,8 +17,8 @@ permissions:
   contents: write  # 允许创建 release、tag 和上传文件
 
 jobs:
-  check-and-version:
-    name: Check Release & Generate Version
+  check-version:
+    name: Check & Calculate Version
     runs-on: ubuntu-latest
     outputs:
       should_release: ${{ steps.check.outputs.should_release }}
@@ -29,7 +29,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整历史，用于生成 changelog
+          fetch-depth: 0  # 获取完整历史，用于分析 commits
 
       - name: Check if should release
         id: check
@@ -117,7 +117,7 @@ jobs:
 
           echo "MAJOR=${MAJOR}" >> $GITHUB_OUTPUT
 
-      - name: Generate version and tag
+      - name: Calculate version number
         if: steps.check.outputs.should_release == 'true'
         id: version
         run: |
@@ -182,39 +182,15 @@ jobs:
           echo "minor=${NEW_MINOR}" >> $GITHUB_OUTPUT
           echo "patch=${NEW_PATCH}" >> $GITHUB_OUTPUT
 
-          echo "📦 Generated version: ${TAG}"
+          echo "📦 Calculated version: ${TAG}"
           echo "   Previous: ${LAST_TAG}"
           echo "   Type: ${VERSION_TYPE}"
 
-      - name: Create and push tag
-        if: steps.check.outputs.should_release == 'true' && github.ref_type != 'tag'
-        run: |
-          VERSION="${{ steps.version.outputs.tag }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${VERSION}" -m "Release ${VERSION}"
-          git push origin "${VERSION}"
-
-      - name: Setup Node.js
-        if: steps.check.outputs.should_release == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Generate changelog and create release
-        if: steps.check.outputs.should_release == 'true'
-        id: create_release
-        run: npx changelogithub --name "Release ${{ steps.version.outputs.tag }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-and-upload:
-    name: Build and Upload ${{ matrix.mcu }}
+  build:
+    name: Build ${{ matrix.mcu }}
     runs-on: ubuntu-latest
-    needs: check-and-version
-    if: needs.check-and-version.outputs.should_release == 'true'
-    permissions:
-      contents: write  # 允许上传文件到 release
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
 
     strategy:
       matrix:
@@ -255,7 +231,7 @@ jobs:
         run: |
           echo "=== Build Information ==="
           echo "Board: ${{ matrix.mcu }}"
-          echo "Version: ${{ needs.check-and-version.outputs.tag_name }}"
+          echo "Version: ${{ needs.check-version.outputs.tag_name }}"
           echo ""
           echo "=== Binary Size ==="
           arm-none-eabi-size build/bin/${{ matrix.board }}/EmbeddedTemplate.elf
@@ -263,7 +239,7 @@ jobs:
       - name: Create release package
         run: |
           mkdir -p release-package
-          TAG="${{ needs.check-and-version.outputs.tag_name }}"
+          TAG="${{ needs.check-version.outputs.tag_name }}"
 
           # 复制固件文件
           cp build/bin/${{ matrix.board }}/EmbeddedTemplate.elf \
@@ -303,12 +279,60 @@ jobs:
           sha256sum EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip \
             > EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip.sha256
 
-      - name: Upload to Release
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.mcu }}
+          path: |
+            EmbeddedTemplate-${{ matrix.mcu }}-${{ needs.check-version.outputs.tag_name }}.zip
+            EmbeddedTemplate-${{ matrix.mcu }}-${{ needs.check-version.outputs.tag_name }}.zip.sha256
+
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [check-version, build]
+    if: needs.check-version.outputs.should_release == 'true' && github.ref_type != 'tag'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push tag
         run: |
-          TAG="${{ needs.check-and-version.outputs.tag_name }}"
-          gh release upload "${TAG}" \
-            EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip \
-            EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip.sha256 \
-            --clobber
+          VERSION="${{ needs.check-version.outputs.tag_name }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${VERSION}" -m "Release ${VERSION}"
+          git push origin "${VERSION}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate changelog and create release
+        run: npx changelogithub --name "Release ${{ needs.check-version.outputs.tag_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload firmware to release
+        run: |
+          TAG="${{ needs.check-version.outputs.tag_name }}"
+
+          # 上传所有固件包
+          for mcu_dir in artifacts/firmware-*; do
+            if [ -d "$mcu_dir" ]; then
+              gh release upload "${TAG}" ${mcu_dir}/* --clobber
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
