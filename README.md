@@ -183,18 +183,109 @@ fix(uart): 修复接收缓冲区溢出
 
 ## VS Code 配置
 
-安装扩展：
-- CMake Tools
-- Cortex-Debug (可选)
+### 必需扩展
+- **CMake Tools** - 构建系统集成
+- **Cortex-Debug** (可选) - 硬件调试支持
 
-配置 `.vscode/settings.json`：
+### 基础配置
+
+在 `.vscode/settings.json` 中配置工具链路径：
+
 ```json
 {
   "cmake.configureEnvironment": {
-    "ARM_GCC_PATH": "C:/path/to/arm-gnu-toolchain/bin"
-  }
+    "ARM_GCC_PATH": "C:/path/to/arm-gnu-toolchain/bin",
+    "ARM_CLANG_PATH": "C:/path/to/ArmCompiler6.xx/bin"
+  },
+  "cortex-debug.gdbPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-gdb.exe",
+  "cortex-debug.objdumpPath": "C:/path/to/arm-gnu-toolchain/bin/arm-none-eabi-objdump.exe",
+  "cortex-debug.JLinkGDBServerPath": "C:/Program Files/SEGGER/JLink_Vxxx/JLinkGDBServerCL.exe"
 }
 ```
+
+### 硬件调试配置
+
+在 `.vscode/launch.json` 中添加调试配置（需要 J-Link 调试器）：
+
+**STM32H743ZI 调试配置：**
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug STM32H743 (ARM GCC)",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/bin/stm32h743zi/EmbeddedTemplate.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "servertype": "jlink",
+            "device": "STM32H743ZI",
+            "interface": "swd",
+            "serialNumber": "",
+            "showDevDebugOutput": "parsed",
+            "swoConfig": {
+                "enabled": true,
+                "cpuFrequency": 400000000,
+                "swoFrequency": 4000000,
+                "source": "probe"
+            },
+            "gdbPath": "${config:cortex-debug.gdbPath}",
+            "toolchainPrefix": "arm-none-eabi",
+            "objdumpPath": "${config:cortex-debug.objdumpPath}",
+            "serverpath": "${config:cortex-debug.JLinkGDBServerPath}",
+            "serverArgs": [
+                "-if", "swd", "-device", "STM32H743ZI", "-endian", "little",
+                "-speed", "4000", "-nogui", "-singlerun"
+            ],
+            "postLaunchCommands": [
+                "monitor reset",
+                "monitor halt"
+            ]
+        }
+    ]
+}
+```
+
+**STM32F407ZG 调试配置：**
+```json
+{
+    "name": "Debug STM32F407 (ARM GCC)",
+    "cwd": "${workspaceFolder}",
+    "executable": "${workspaceFolder}/build/bin/stm32f407zg/EmbeddedTemplate.elf",
+    "request": "launch",
+    "type": "cortex-debug",
+    "runToEntryPoint": "main",
+    "servertype": "jlink",
+    "device": "STM32F407ZG",
+    "interface": "swd",
+    "serialNumber": "",
+    "showDevDebugOutput": "parsed",
+    "swoConfig": {
+        "enabled": true,
+        "cpuFrequency": 168000000,
+        "swoFrequency": 4000000,
+        "source": "probe"
+    },
+    "gdbPath": "${config:cortex-debug.gdbPath}",
+    "toolchainPrefix": "arm-none-eabi",
+    "objdumpPath": "${config:cortex-debug.objdumpPath}",
+    "serverpath": "${config:cortex-debug.JLinkGDBServerPath}",
+    "serverArgs": [
+        "-if", "swd", "-device", "STM32F407ZG", "-endian", "little",
+        "-speed", "4000", "-nogui", "-singlerun"
+    ],
+    "postLaunchCommands": [
+        "monitor reset",
+        "monitor halt"
+    ]
+}
+```
+
+**调试前提条件：**
+- 安装 Cortex-Debug 扩展
+- 配置工具链路径（见上文基础配置）
+- 连接 J-Link 调试器到目标板
 
 ## 许可证
 
