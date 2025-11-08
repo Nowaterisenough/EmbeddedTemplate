@@ -4,17 +4,26 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'  # 支持手动打tag触发
   workflow_dispatch:
+    inputs:
+      force_release:
+        description: '强制发布（忽略commit类型检查）'
+        type: boolean
+        default: false
 
 permissions:
   contents: write  # 允许创建 release、tag 和上传文件
 
 jobs:
-  create-release:
-    name: Create GitHub Release
+  check-and-version:
+    name: Check Release & Generate Version
     runs-on: ubuntu-latest
     outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
       tag_name: ${{ steps.version.outputs.tag }}
+      version_type: ${{ steps.check.outputs.version_type }}
 
     steps:
       - name: Checkout repository
@@ -22,47 +31,163 @@ jobs:
         with:
           fetch-depth: 0  # 获取完整历史，用于生成 changelog
 
-      - name: Generate version and tag
-        id: version
+      - name: Check if should release
+        id: check
         run: |
-          # 主版本号和次版本号（手动管理）
-          MAJOR="01"
-          MINOR="00"
+          # ============================================
+          # 配置区：MAJOR 版本号（手动维护）
+          # ============================================
+          MAJOR=1
 
-          # 构建日期（固定8位：YYYYMMDD）
-          BUILD_DATE=$(date +'%Y%m%d')
+          # ============================================
+          # 检查是否应该发布
+          # ============================================
 
-          # 获取上一个 tag
+          # 如果是tag推送，直接使用tag
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version_type=manual_tag" >> $GITHUB_OUTPUT
+            echo "📌 Manual tag push detected"
+            exit 0
+          fi
+
+          # 如果是手动触发且强制发布
+          if [[ "${{ github.event.inputs.force_release }}" == "true" ]]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version_type=force" >> $GITHUB_OUTPUT
+            echo "🔨 Force release triggered"
+            echo "MAJOR=${MAJOR}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 获取上一个tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
           if [ -z "$LAST_TAG" ]; then
-            # 第一次发布，统计所有 commit
-            COMMIT_COUNT=$(git rev-list --count HEAD)
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version_type=initial" >> $GITHUB_OUTPUT
+            echo "MAJOR=${MAJOR}" >> $GITHUB_OUTPUT
+            echo "🎉 First release"
+            exit 0
+          fi
+
+          # 获取自上次tag以来的commits
+          COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s")
+
+          if [ -z "$COMMITS" ]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "⏭️  No new commits since last release"
+            exit 0
+          fi
+
+          # 分析commit类型
+          HAS_FEAT=false
+          HAS_FIX=false
+          HAS_BREAKING=false
+
+          while IFS= read -r commit; do
+            if [[ "$commit" =~ ^feat(\(.+\))?!?: ]] || [[ "$commit" =~ BREAKING[[:space:]]CHANGE ]]; then
+              HAS_BREAKING=true
+              HAS_FEAT=true
+            elif [[ "$commit" =~ ^feat(\(.+\))?: ]]; then
+              HAS_FEAT=true
+            elif [[ "$commit" =~ ^fix(\(.+\))?: ]]; then
+              HAS_FIX=true
+            fi
+          done <<< "$COMMITS"
+
+          # 决定版本类型
+          if [ "$HAS_BREAKING" = true ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version_type=major" >> $GITHUB_OUTPUT
+            echo "⚠️  BREAKING CHANGE detected (建议手动升级 MAJOR)"
+          elif [ "$HAS_FEAT" = true ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version_type=minor" >> $GITHUB_OUTPUT
+            echo "✨ New features detected (MINOR bump)"
+          elif [ "$HAS_FIX" = true ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version_type=patch" >> $GITHUB_OUTPUT
+            echo "🐛 Bug fixes detected (PATCH bump)"
           else
-            # 统计自上次发布以来的 commit 数量
-            COMMIT_COUNT=$(git rev-list --count ${LAST_TAG}..HEAD)
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "⏭️  No feat/fix commits, skipping release"
+            exit 0
           fi
 
-          # 修订号（固定2位，00-99）
-          PATCH=$(printf "%02d" $COMMIT_COUNT)
+          echo "MAJOR=${MAJOR}" >> $GITHUB_OUTPUT
 
-          # 如果超过99个commit，使用99
-          if [ $COMMIT_COUNT -gt 99 ]; then
-            PATCH="99"
+      - name: Generate version and tag
+        if: steps.check.outputs.should_release == 'true'
+        id: version
+        run: |
+          # 如果是手动tag，直接使用
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "Using manual tag: ${TAG}"
+            exit 0
           fi
 
-          # 生成版本号：01.00.XX.20251029
-          TAG="${MAJOR}.${MINOR}.${PATCH}.${BUILD_DATE}"
+          # ============================================
+          # 自动版本号计算
+          # ============================================
+          MAJOR=${{ steps.check.outputs.MAJOR }}
+          VERSION_TYPE=${{ steps.check.outputs.version_type }}
+
+          # 获取上一个tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+
+          # 移除v前缀并解析版本号
+          LAST_VERSION=${LAST_TAG#v}
+          LAST_MAJOR=$(echo $LAST_VERSION | cut -d. -f1)
+          LAST_MINOR=$(echo $LAST_VERSION | cut -d. -f2)
+          LAST_PATCH=$(echo $LAST_VERSION | cut -d. -f3)
+
+          # 初始化新版本号
+          NEW_MAJOR=$MAJOR
+          NEW_MINOR=$LAST_MINOR
+          NEW_PATCH=$LAST_PATCH
+
+          # 检查MAJOR是否变化
+          if [ "$MAJOR" != "$LAST_MAJOR" ]; then
+            NEW_MINOR=0
+            NEW_PATCH=0
+            echo "🔼 MAJOR version changed: ${LAST_MAJOR} -> ${MAJOR}"
+          else
+            # MAJOR相同，根据commit类型决定MINOR/PATCH
+            case $VERSION_TYPE in
+              minor)
+                NEW_MINOR=$((LAST_MINOR + 1))
+                NEW_PATCH=0
+                ;;
+              patch)
+                NEW_PATCH=$((LAST_PATCH + 1))
+                ;;
+              initial)
+                NEW_MINOR=0
+                NEW_PATCH=0
+                ;;
+              force)
+                NEW_PATCH=$((LAST_PATCH + 1))
+                ;;
+            esac
+          fi
+
+          # 生成最终版本号
+          TAG="v${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
 
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "date=${BUILD_DATE}" >> $GITHUB_OUTPUT
-          echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          echo "commit_count=${COMMIT_COUNT}" >> $GITHUB_OUTPUT
+          echo "major=${NEW_MAJOR}" >> $GITHUB_OUTPUT
+          echo "minor=${NEW_MINOR}" >> $GITHUB_OUTPUT
+          echo "patch=${NEW_PATCH}" >> $GITHUB_OUTPUT
 
-          echo "Generated version: ${TAG}"
-          echo "Commits since last release: ${COMMIT_COUNT}"
+          echo "📦 Generated version: ${TAG}"
+          echo "   Previous: ${LAST_TAG}"
+          echo "   Type: ${VERSION_TYPE}"
 
       - name: Create and push tag
+        if: steps.check.outputs.should_release == 'true' && github.ref_type != 'tag'
         run: |
           VERSION="${{ steps.version.outputs.tag }}"
           git config user.name "github-actions[bot]"
@@ -71,11 +196,13 @@ jobs:
           git push origin "${VERSION}"
 
       - name: Setup Node.js
+        if: steps.check.outputs.should_release == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Generate changelog and create release
+        if: steps.check.outputs.should_release == 'true'
         id: create_release
         run: npx changelogithub --name "Release ${{ steps.version.outputs.tag }}"
         env:
@@ -84,7 +211,8 @@ jobs:
   build-and-upload:
     name: Build and Upload ${{ matrix.mcu }}
     runs-on: ubuntu-latest
-    needs: create-release
+    needs: check-and-version
+    if: needs.check-and-version.outputs.should_release == 'true'
     permissions:
       contents: write  # 允许上传文件到 release
 
@@ -127,7 +255,7 @@ jobs:
         run: |
           echo "=== Build Information ==="
           echo "Board: ${{ matrix.mcu }}"
-          echo "Version: ${{ needs.create-release.outputs.tag_name }}"
+          echo "Version: ${{ needs.check-and-version.outputs.tag_name }}"
           echo ""
           echo "=== Binary Size ==="
           arm-none-eabi-size build/bin/${{ matrix.board }}/EmbeddedTemplate.elf
@@ -135,7 +263,7 @@ jobs:
       - name: Create release package
         run: |
           mkdir -p release-package
-          TAG="${{ needs.create-release.outputs.tag_name }}"
+          TAG="${{ needs.check-and-version.outputs.tag_name }}"
 
           # 复制固件文件
           cp build/bin/${{ matrix.board }}/EmbeddedTemplate.elf \
@@ -177,7 +305,7 @@ jobs:
 
       - name: Upload to Release
         run: |
-          TAG="${{ needs.create-release.outputs.tag_name }}"
+          TAG="${{ needs.check-and-version.outputs.tag_name }}"
           gh release upload "${TAG}" \
             EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip \
             EmbeddedTemplate-${{ matrix.mcu }}-${TAG}.zip.sha256 \
