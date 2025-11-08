@@ -67,7 +67,7 @@ else()
     # 没有 tag，使用默认版本
     set(VERSION_MAJOR 1)
     set(VERSION_MINOR 0)
-    set(VERSION_MINOR 0)
+    set(VERSION_PATCH 0)
 endif()
 
 # 获取从最近 tag 以来的 commit 数量作为 build number
