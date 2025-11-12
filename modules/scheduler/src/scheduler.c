@@ -25,7 +25,12 @@ static tcb_t *ready_queue[SCHED_MAX_PRIORITIES] = {NULL};
 
 /* 任务池 */
 static tcb_t task_pool[SCHED_MAX_TASKS];
-static uint32_t task_count = 0;
+
+/* 空闲 TCB 链表头 (用于回收) */
+static tcb_t *free_tcb_list = NULL;
+
+/* 已分配的任务数量 (用于快速查找上限) */
+static uint32_t allocated_task_count = 0;
 
 /* 当前运行任务 */
 static tcb_t *current_task = NULL;
@@ -169,8 +174,9 @@ static tcb_t* select_next_task(void)
 
 /**
  * 任务退出错误处理
+ * FIX: 声明为非 static，供移植层使用
  */
-static void task_exit_error(void)
+void task_exit_error(void)
 {
     /* 任务不应该退出，如果执行到这里说明出错了 */
     sched_enter_critical();
@@ -189,7 +195,13 @@ void sched_init(void)
     memset(task_pool, 0, sizeof(task_pool));
     memset(ready_queue, 0, sizeof(ready_queue));
 
-    task_count = 0;
+    /* 初始化 TCB 空闲链表 */
+    for (uint32_t i = 0; i < SCHED_MAX_TASKS; i++) {
+        task_pool[i].next = (i < SCHED_MAX_TASKS - 1) ? &task_pool[i + 1] : NULL;
+    }
+    free_tcb_list = &task_pool[0];
+    allocated_task_count = 0;
+
     current_task = NULL;
     tick_count = 0;
     critical_nesting = 0;
@@ -206,11 +218,7 @@ task_handle_t sched_task_create(
     uint8_t         priority
 )
 {
-    if (task_count >= SCHED_MAX_TASKS) return NULL;
     if (priority >= SCHED_MAX_PRIORITIES) return NULL;
-
-    /* 警告：自定义栈大小被忽略，使用预分配的固定大小栈 */
-    (void)stack_size;
 
     /* 从栈池分配栈空间 */
     int stack_index = allocate_stack_from_pool();
@@ -218,8 +226,18 @@ task_handle_t sched_task_create(
         return NULL;  /* 栈池已满 */
     }
 
-    /* 从任务池分配 TCB */
-    tcb_t *task = &task_pool[task_count++];
+    /* 从空闲 TCB 链表分配 TCB (FIX: 支持TCB回收) */
+    sched_enter_critical();
+    if (free_tcb_list == NULL) {
+        sched_exit_critical();
+        free_stack_to_pool(stack_index);
+        return NULL;  /* 没有空闲 TCB */
+    }
+
+    tcb_t *task = free_tcb_list;
+    free_tcb_list = free_tcb_list->next;
+    allocated_task_count++;
+    sched_exit_critical();
 
     /* 使用预分配的栈 */
     task->stack_base = (sched_stack_t*)task_stack_pool[stack_index];
@@ -267,6 +285,11 @@ void sched_task_delete(task_handle_t task)
 
     task->state = TASK_DELETED;
 
+    /* FIX: 将 TCB 放回空闲链表，支持任务回收 */
+    task->next = free_tcb_list;
+    free_tcb_list = task;
+    allocated_task_count--;
+
     sched_exit_critical();
 
     /* 如果删除当前任务，立即切换 */
@@ -277,7 +300,7 @@ void sched_task_delete(task_handle_t task)
 
 void sched_start(void)
 {
-    if (task_count == 0) {
+    if (allocated_task_count == 0) {
         /* 没有任务，无法启动 */
         return;
     }
@@ -379,18 +402,29 @@ void sched_switch_context(void)
 
 /**
  * 系统滴答处理 (在 SysTick 中调用)
+ *
+ * FIX: 添加立即抢占逻辑 - 当高优先级任务被唤醒时立即切换
  */
 void sched_tick_handler(void)
 {
     tick_count++;
 
+    bool need_schedule = false;
+
     /* 检查阻塞任务是否超时 */
-    for (uint32_t i = 0; i < task_count; i++) {
+    for (uint32_t i = 0; i < SCHED_MAX_TASKS; i++) {
         tcb_t *task = &task_pool[i];
         if (task->state == TASK_BLOCKED) {
-            if (tick_count >= task->block_time) {
+            /* 使用溢出安全的比较：(int32_t)差值 >= 0 */
+            int32_t diff = (int32_t)(tick_count - task->block_time);
+            if (diff >= 0) {
                 /* 超时，恢复到就绪队列 */
                 add_task_to_ready_queue(task);
+
+                /* FIX: 如果被唤醒的任务优先级更高，立即抢占 */
+                if (current_task && task->priority > current_task->priority) {
+                    need_schedule = true;
+                }
             }
         }
     }
@@ -401,8 +435,13 @@ void sched_tick_handler(void)
 
         /* 时间片耗尽，触发调度 */
         if (current_task->time_slice == 0) {
-            sched_yield();
+            need_schedule = true;
         }
+    }
+
+    /* 如果需要调度则触发 */
+    if (need_schedule) {
+        sched_yield();
     }
 }
 
