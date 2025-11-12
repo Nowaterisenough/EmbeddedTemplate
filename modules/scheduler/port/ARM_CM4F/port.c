@@ -61,6 +61,8 @@ extern sched_stack_t** sched_get_current_stack_ptr(void);
  *   R5
  *   R4
  *   EXC_RETURN
+ *
+ * FIX: LR 设置为 task_exit_error，防止任务函数返回时跳到 0x00
  */
 sched_stack_t* port_init_stack(
     sched_stack_t  *stack_top,
@@ -74,7 +76,7 @@ sched_stack_t* port_init_stack(
     /* 模拟异常栈帧 (硬件自动保存部分) */
     *(--stack_top) = INITIAL_XPSR;                        /* xPSR */
     *(--stack_top) = (sched_stack_t)task_func;           /* PC */
-    *(--stack_top) = 0;                                  /* LR (未使用) */
+    *(--stack_top) = (sched_stack_t)task_exit_error;     /* LR (FIX: 返回错误处理) */
     *(--stack_top) = 0;                                  /* R12 */
     *(--stack_top) = 0;                                  /* R3 */
     *(--stack_top) = 0;                                  /* R2 */
@@ -166,32 +168,34 @@ void port_yield(void)
  * 1. 保存当前任务上下文
  * 2. 调用调度器选择下一个任务
  * 3. 恢复新任务上下文
+ *
+ * FIX: 保存 PSP 到临时寄存器，避免被函数调用覆盖
  */
 __attribute__((naked)) void PendSV_Handler(void)
 {
     __asm volatile (
-        /* 获取当前 PSP */
+        /* 获取当前 PSP (修改前的栈指针) */
         "   mrs r0, psp                             \n"
         "   isb                                     \n"
 
         /* 保存软件寄存器 (R4-R11, EXC_RETURN) */
         "   stmdb r0!, {r4-r11, r14}                \n"
 
-        /* 保存当前任务栈指针 */
-        "   ldr r3, =sched_get_current_stack_ptr    \n"
-        "   bl  sched_get_current_stack_ptr         \n"
-        "   ldr r2, [r0]                            \n"  /* r2 = *current_stack_ptr */
-        "   str r0, [r2]                            \n"  /* **current_stack_ptr = sp */
+        /* 保存 PSP 到 r1 (防止函数调用覆盖 r0) */
+        "   mov r1, r0                              \n"
+
+        /* 保存当前任务栈指针到 TCB */
+        "   bl  sched_get_current_stack_ptr         \n"  /* r0 = &current_task->stack_ptr */
+        "   ldr r2, [r0]                            \n"  /* r2 = current_task (TCB地址) */
+        "   str r1, [r2]                            \n"  /* TCB->stack_ptr = r1 (修改后的PSP) */
 
         /* 调用调度器 */
-        "   stmdb sp!, {r0, r3}                     \n"
         "   bl sched_switch_context                 \n"
-        "   ldmia sp!, {r0, r3}                     \n"
 
         /* 获取新任务栈指针 */
-        "   bl  sched_get_current_stack_ptr         \n"
-        "   ldr r1, [r0]                            \n"  /* r1 = *current_stack_ptr */
-        "   ldr r0, [r1]                            \n"  /* r0 = **current_stack_ptr */
+        "   bl  sched_get_current_stack_ptr         \n"  /* r0 = &current_task->stack_ptr */
+        "   ldr r1, [r0]                            \n"  /* r1 = current_task (新TCB) */
+        "   ldr r0, [r1]                            \n"  /* r0 = current_task->stack_ptr (新PSP) */
 
         /* 恢复软件寄存器 */
         "   ldmia r0!, {r4-r11, r14}                \n"
